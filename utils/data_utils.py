@@ -1,6 +1,6 @@
 import csv
 
-from models.venue import Venue
+from models.venue import Offer
 
 
 def is_duplicate_venue(venue_name: str, seen_names: set) -> bool:
@@ -16,8 +16,8 @@ def save_venues_to_csv(venues: list, filename: str):
         print("No venues to save.")
         return
 
-    # Use field names from the Venue model
-    fieldnames = Venue.model_fields.keys()
+    # Use field names from the Offer model
+    fieldnames = Offer.model_fields.keys()
 
     with open(filename, mode="w", newline="", encoding="utf-8") as file:
         writer = csv.DictWriter(file, fieldnames=fieldnames)

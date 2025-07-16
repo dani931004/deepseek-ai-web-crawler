@@ -10,7 +10,7 @@ from crawl4ai import (
     LLMExtractionStrategy,
 )
 
-from models.venue import Venue
+from models.venue import Offer
 from utils.data_utils import is_complete_venue, is_duplicate_venue
 
 
@@ -40,12 +40,11 @@ def get_llm_strategy() -> LLMExtractionStrategy:
     return LLMExtractionStrategy(
         provider="groq/deepseek-r1-distill-llama-70b",  # Name of the LLM provider
         api_token=os.getenv("GROQ_API_KEY"),  # API token for authentication
-        schema=Venue.model_json_schema(),  # JSON schema of the data model
+        schema=Offer.model_json_schema(),  # JSON schema of the data model
         extraction_type="schema",  # Type of extraction to perform
         instruction=(
-            "Extract all venue objects with 'name', 'location', 'price', 'capacity', "
-            "'rating', 'reviews', and a 1 sentence description of the venue from the "
-            "following content."
+            "Extract all offer objects with 'name', 'date', 'price', 'transport_type', "
+            "and 'link' from the following content."
         ),  # Instructions for the LLM
         input_format="markdown",  # Format of the input content
         verbose=True,  # Enable verbose logging
@@ -165,6 +164,10 @@ async def fetch_and_process_page(
             print(f"Duplicate venue '{venue['name']}' found. Skipping.")
             continue  # Skip duplicate venues
 
+        # Clean up the link by removing angle brackets if present
+        if 'link' in venue and venue['link']:
+            venue['link'] = venue['link'].replace('<', '').replace('>', '')
+            
         # Add venue to the list
         seen_names.add(venue["name"])
         complete_venues.append(venue)

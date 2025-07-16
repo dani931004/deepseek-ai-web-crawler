@@ -1,13 +1,11 @@
 # config.py
 
-BASE_URL = "https://www.theknot.com/marketplace/wedding-reception-venues-atlanta-ga"
-CSS_SELECTOR = "[class^='info-container']"
+BASE_URL = "https://dari-tour.com/"
+CSS_SELECTOR = "[class^='col-xl-3 col-lg-3 col-md-4 col-sm-6 col-12 col-offer']"
 REQUIRED_KEYS = [
     "name",
+    "date",
     "price",
-    "location",
-    "capacity",
-    "rating",
-    "reviews",
-    "description",
+    "transport_type",
+    "link",
 ]

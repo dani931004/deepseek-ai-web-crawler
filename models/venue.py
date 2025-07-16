@@ -1,15 +1,15 @@
+# models/venue.py
+
 from pydantic import BaseModel
 
 
-class Venue(BaseModel):
+class Offer(BaseModel):
     """
-    Represents the data structure of a Venue.
+    Represents the data structure of an Offer.
     """
 
     name: str
-    location: str
+    date: str
     price: str
-    capacity: str
-    rating: float
-    reviews: int
-    description: str
+    transport_type: str
+    link: str
