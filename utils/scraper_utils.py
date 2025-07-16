@@ -10,8 +10,8 @@ from crawl4ai import (
     LLMExtractionStrategy,
 )
 
-from models.venue import Offer
-from utils.data_utils import is_complete_venue, is_duplicate_venue
+from models.offer import Offer
+from utils.data_utils import is_complete_offer, is_duplicate_offer
 
 
 def get_browser_config() -> BrowserConfig:
@@ -98,7 +98,7 @@ async def fetch_and_process_page(
     seen_names: Set[str],
 ) -> Tuple[List[dict], bool]:
     """
-    Fetches and processes a single page of venue data.
+    Fetches and processes a single page of offer data.
 
     Args:
         crawler (AsyncWebCrawler): The web crawler instance.
@@ -107,12 +107,12 @@ async def fetch_and_process_page(
         css_selector (str): The CSS selector to target the content.
         llm_strategy (LLMExtractionStrategy): The LLM extraction strategy.
         session_id (str): The session identifier.
-        required_keys (List[str]): List of required keys in the venue data.
-        seen_names (Set[str]): Set of venue names that have already been seen.
+        required_keys (List[str]): List of required keys in the offer data.
+        seen_names (Set[str]): Set of offer names that have already been seen.
 
     Returns:
         Tuple[List[dict], bool]:
-            - List[dict]: A list of processed venues from the page.
+            - List[dict]: A list of processed offers from the page.
             - bool: A flag indicating if the "No Results Found" message was encountered.
     """
     url = f"{base_url}?page={page_number}"
@@ -141,40 +141,40 @@ async def fetch_and_process_page(
     # Parse extracted content
     extracted_data = json.loads(result.extracted_content)
     if not extracted_data:
-        print(f"No venues found on page {page_number}.")
+        print(f"No offers found on page {page_number}.")
         return [], False
 
     # After parsing extracted content
     print("Extracted data:", extracted_data)
 
-    # Process venues
-    complete_venues = []
-    for venue in extracted_data:
-        # Debugging: Print each venue to understand its structure
-        print("Processing venue:", venue)
+    # Process offers
+    complete_offers = []
+    for offer in extracted_data:
+        # Debugging: Print each offer to understand its structure
+        print("Processing offer:", offer)
 
         # Ignore the 'error' key if it's False
-        if venue.get("error") is False:
-            venue.pop("error", None)  # Remove the 'error' key if it's False
+        if offer.get("error") is False:
+            offer.pop("error", None)  # Remove the 'error' key if it's False
 
-        if not is_complete_venue(venue, required_keys):
-            continue  # Skip incomplete venues
+        if not is_complete_offer(offer, required_keys):
+            continue  # Skip incomplete offers
 
-        if is_duplicate_venue(venue["name"], seen_names):
-            print(f"Duplicate venue '{venue['name']}' found. Skipping.")
-            continue  # Skip duplicate venues
+        if is_duplicate_offer(offer["name"], seen_names):
+            print(f"Duplicate offer '{offer['name']}' found. Skipping.")
+            continue  # Skip duplicate offers
 
         # Clean up the link by removing angle brackets if present
-        if 'link' in venue and venue['link']:
-            venue['link'] = venue['link'].replace('<', '').replace('>', '')
+        if 'link' in offer and offer['link']:
+            offer['link'] = offer['link'].replace('<', '').replace('>', '')
             
-        # Add venue to the list
-        seen_names.add(venue["name"])
-        complete_venues.append(venue)
+        # Add offer to the list
+        seen_names.add(offer["name"])
+        complete_offers.append(offer)
 
-    if not complete_venues:
-        print(f"No complete venues found on page {page_number}.")
+    if not complete_offers:
+        print(f"No complete offers found on page {page_number}.")
         return [], False
 
-    print(f"Extracted {len(complete_venues)} venues from page {page_number}.")
-    return complete_venues, False  # Continue crawling
+    print(f"Extracted {len(complete_offers)} offers from page {page_number}.")
+    return complete_offers, False  # Continue crawling
