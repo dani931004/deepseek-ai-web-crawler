@@ -9,7 +9,6 @@ from utils.scraper_utils import (
     get_llm_strategy,
 )
 import os
-import asyncio
 from models.dari_tour_models import DariTourOffer
 
 
@@ -37,6 +36,7 @@ async def crawl_dari_tour_offers():
             session_id=session_id,
             required_keys=REQUIRED_KEYS_DARI_TOUR_OFFERS,
             seen_names=seen_names,
+            browser_config=browser_config  # Pass the browser config with CSS selector
         )
 
         if not offers:
