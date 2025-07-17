@@ -16,11 +16,6 @@ def get_llm_strategy(model: Type[Any]) -> LLMExtractionStrategy:
     Returns:
         LLMExtractionStrategy: The settings for how to extract data using LLM.
     """
-    # Calculate max tokens per request to stay under 6000 TPM
-    # Using conservative values to avoid rate limits
-    max_tokens_per_request = 2000  # Increased from 500 to allow for larger responses
-    requests_per_minute = 3  # Reduced from 10 to stay well under rate limits
-    
     # Get the model's JSON schema which includes field descriptions
     schema = model.model_json_schema()
     
@@ -47,39 +42,61 @@ def get_llm_strategy(model: Type[Any]) -> LLMExtractionStrategy:
         "- If no items are found, return an empty array"
     )
     
+    # Configure chunking strategy
+    chunking_config = {
+        'strategy': 'semantic',  # Use semantic chunking
+        'chunk_size': 500,       # Smaller chunks to stay under token limits
+        'chunk_overlap': 50,     # Small overlap to maintain context
+        'max_chars': 2000,       # Hard limit on chunk size
+        'split_on_headers': True, # Split on HTML headers
+        'respect_sentence_boundary': True
+    }
+    
     return LLMExtractionStrategy(
-        provider="groq/deepseek-r1-distill-llama-70b",
-        api_token=os.getenv("GROQ_API_KEY"),
+        provider="groq/llama3-8b-8192",  # Using a smaller, faster model
+        model=model,
+        api_key=os.getenv("GROQ_API_KEY"),
         schema=schema,
         extraction_type="schema",
         instruction=instruction,
         input_format="html",
-        verbose=True,
-        max_tokens=1000,  # Limit response size
-        temperature=0.2,
-        top_p=0.95,
-        frequency_penalty=0.1,
-        presence_penalty=0.1,
-        retry_attempts=2,  # Reduced retries to fail faster
-        retry_delay=5,     # Shorter delay between retries
-        request_timeout=60, # Reduced timeout
+        max_tokens=500,  # Reduced max tokens
+        temperature=0.1,  # More deterministic output
+        retry_attempts=2,
+        retry_delay=5,
         rate_limit={
-            'tokens_per_minute': 3000,  # More conservative limit
-            'requests_per_minute': requests_per_minute,
-            'tokens_per_request': max_tokens_per_request
+            'tokens_per_minute': 30000,  # Higher token limit for smaller model
+            'requests_per_minute': 10,   # More requests allowed
+            'tokens_per_request': 1000   # Smaller chunks per request
         },
         extract_rules={
-            'strict_mode': False,  # Allow partial matches
-            'allow_partial': True,  # Accept partial results
-            'max_retries': 1,      # Fewer retries to avoid rate limits
+            'chunking': chunking_config,
+            'extraction_type': 'structured',
+            'output_format': 'json',
+            'required_fields': [
+                'title',
+                'date',
+                'price',
+                'transport_type',
+                'link'
+            ],
+            'allow_partial': True,
+            'error_handling': 'skip',
+            'extract_individual_elements': True  # Extract each offer separately
         },
-        # Additional parameters to reduce input size
         content_extraction={
-            'extract_main_content': True,  # Focus on main content
-            'ignore_boilerplate': True,    # Ignore headers/footers
-            'min_text_length': 100,        # Skip very short texts
-            'max_text_length': 4000,       # Limit input size
-            'include_links': False,        # Don't include links in extraction
-            'include_images': False        # Don't include images
+            'extract_main_content': False,  # We're already using CSS selector
+            'ignore_boilerplate': True,
+            'min_text_length': 50,  # Lower threshold for offer items
+            'max_text_length': 1000,  # Smaller max length
+            'include_links': True,
+            'include_images': False,
+            'include_tables': False
+        },
+        optimization={
+            'remove_duplicate_blocks': True,
+            'merge_short_blocks': False,  # Keep offers separate
+            'max_blocks_per_page': 20,   # More blocks for individual offers
+            'sort_blocks': 'position'    # Process blocks in original order
         }
     )

@@ -2,7 +2,7 @@
 
 # Dari Tour Offers
 BASE_URL_DARI_TOUR_OFFERS = "https://dari-tour.com/lyato-2025"
-CSS_SELECTOR_DARI_TOUR_OFFERS = "[class^='col-xl-3 col-lg-3 col-md-4 col-sm-6 col-12 col-offer']"
+CSS_SELECTOR_DARI_TOUR_OFFERS = ".offer-item"
 REQUIRED_KEYS_DARI_TOUR_OFFERS = [
     "title",
     "date",
