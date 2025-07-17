@@ -42,32 +42,37 @@ def get_llm_strategy(model: Type[Any]) -> LLMExtractionStrategy:
         "- If no items are found, return an empty array"
     )
     
-    # Configure chunking strategy
+    # Configure chunking strategy - very conservative to minimize token usage
     chunking_config = {
-        'strategy': 'semantic',  # Use semantic chunking
-        'chunk_size': 500,       # Smaller chunks to stay under token limits
-        'chunk_overlap': 50,     # Small overlap to maintain context
-        'max_chars': 2000,       # Hard limit on chunk size
-        'split_on_headers': True, # Split on HTML headers
-        'respect_sentence_boundary': True
+        'strategy': 'semantic',
+        'chunk_size': 150,    # Very small chunks to stay well under token limits
+        'chunk_overlap': 20,  # Small overlap to maintain context
+        'max_chars': 500,     # Strict max chars per chunk
+        'split_on_headers': False,
+        'respect_sentence_boundary': True,
+        'min_chunk_size': 50  # Ensure we don't create too many tiny chunks
     }
     
+    # Create the LLM extraction strategy with optimized settings
     return LLMExtractionStrategy(
-        provider="groq/llama3-8b-8192",  # Using a smaller, faster model
+        provider="groq/llama3-8b-8192",
         model=model,
         api_key=os.getenv("GROQ_API_KEY"),
         schema=schema,
         extraction_type="schema",
         instruction=instruction,
-        input_format="html",
-        max_tokens=500,  # Reduced max tokens
-        temperature=0.1,  # More deterministic output
-        retry_attempts=2,
-        retry_delay=5,
+        max_tokens=200,         # Very limited tokens per request
+        temperature=0.1,        # More deterministic output
+        top_p=0.85,             # More focused sampling
+        frequency_penalty=0.1,  # Discourage repetition
+        presence_penalty=0.1,   # Encourage diversity
+        retry_attempts=2,       # Fewer retries to avoid rate limits
+        retry_delay=15,         # Longer delay between retries
+        request_timeout=120,     # Longer timeout for slower responses
         rate_limit={
-            'tokens_per_minute': 30000,  # Higher token limit for smaller model
-            'requests_per_minute': 10,   # More requests allowed
-            'tokens_per_request': 1000   # Smaller chunks per request
+            'tokens_per_minute': 1000,  # Very conservative token limit
+            'requests_per_minute': 3,   # Very few requests per minute
+            'tokens_per_request': 200   # Very small chunks per request
         },
         extract_rules={
             'chunking': chunking_config,
@@ -82,21 +87,24 @@ def get_llm_strategy(model: Type[Any]) -> LLMExtractionStrategy:
             ],
             'allow_partial': True,
             'error_handling': 'skip',
-            'extract_individual_elements': True  # Extract each offer separately
+            'extract_individual_elements': True
         },
         content_extraction={
-            'extract_main_content': False,  # We're already using CSS selector
+            'extract_main_content': False,
             'ignore_boilerplate': True,
-            'min_text_length': 50,  # Lower threshold for offer items
-            'max_text_length': 1000,  # Smaller max length
-            'include_links': True,
-            'include_images': False,
-            'include_tables': False
+            'min_text_length': 50,    # Slightly higher to avoid tiny fragments
+            'max_text_length': 500,   # Much smaller max length
+            'include_links': False,   # Exclude links to reduce tokens
+            'include_images': False,  # No images
+            'include_tables': False,  # No tables
+            'simplify_html': True,    # Simplify HTML structure
+            'remove_empty_nodes': True,  # Remove empty elements
+            'normalize_whitespace': True  # Clean up whitespace
         },
         optimization={
             'remove_duplicate_blocks': True,
-            'merge_short_blocks': False,  # Keep offers separate
-            'max_blocks_per_page': 20,   # More blocks for individual offers
-            'sort_blocks': 'position'    # Process blocks in original order
+            'merge_short_blocks': False,
+            'max_blocks_per_page': 10,  # Fewer blocks to process
+            'sort_blocks': 'position'
         }
     )
