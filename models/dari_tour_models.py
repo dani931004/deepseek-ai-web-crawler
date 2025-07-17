@@ -1,11 +1,11 @@
-# models/venue.py
+# models/dari_tour_models.py
 
 from pydantic import BaseModel
 
 
-class Offer(BaseModel):
+class DariTourOffer(BaseModel):
     """
-    Represents the data structure of an Offer.
+    Represents the data structure of an DariTourOffer.
     """
 
     name: str
