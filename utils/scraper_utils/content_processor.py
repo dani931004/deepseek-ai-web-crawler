@@ -4,7 +4,7 @@ Content processing utilities for the web crawler.
 import time
 import asyncio
 from typing import Any, Callable, List, Optional
-from crawl4ai import AsyncWebCrawler, CrawlerRunConfig, LLMExtractionStrategy, CacheMode
+from crawl4ai import AsyncWebCrawler, CrawlerRunConfig, LLMExtractionStrategy, CacheMode, BrowserConfig
 
 async def process_page_content(
     content: str,
@@ -12,7 +12,7 @@ async def process_page_content(
     required_keys: List[str],
     seen_names: set,
     base_url: str,
-    browser_config: Optional[dict] = None,
+    crawler: AsyncWebCrawler,
     max_tokens_per_chunk: int = 4000,
     tokens_per_minute: int = 5500,
     verbose: bool = True
@@ -25,6 +25,8 @@ async def process_page_content(
         llm_strategy: The LLM extraction strategy
         required_keys: List of required keys in the offer data
         seen_names: Set of already seen offer names
+        base_url: The base URL for the content
+        browser_config: Configuration for the browser
         max_tokens_per_chunk: Maximum tokens per chunk
         tokens_per_minute: Maximum tokens per minute
         verbose: Whether to print progress information
@@ -32,7 +34,7 @@ async def process_page_content(
     Returns:
         List of processed offers
     """
-    async def process_chunk(chunk: str) -> List[dict]:
+    async def process_chunk(chunk: str, crawler: AsyncWebCrawler) -> List[dict]:
         """Process a single chunk of HTML content"""
         try:
             # Create a temporary crawler config for this chunk
@@ -44,15 +46,11 @@ async def process_page_content(
             
             # Process the chunk with the provided base URL and browser config
             try:
-                # Use the provided browser config if available, otherwise use minimal config
-                config_to_use = browser_config or temp_config
-                
-                async with AsyncWebCrawler(config=config_to_use) as crawler:
-                    result = await crawler.arun(
-                        url=base_url,
-                        config=temp_config,  # Still use temp_config for extraction settings
-                        html_content=chunk
-                    )
+                result = await crawler.arun(
+                    url=base_url,
+                    config=temp_config,
+                    html_content=chunk
+                )
             
                 if not result or not hasattr(result, 'success') or not result.success:
                     error_msg = getattr(result, 'error_message', 'Unknown error')
@@ -89,10 +87,14 @@ async def process_page_content(
             return []
     
     try:
+        # Use the provided crawler instance
+        from functools import partial
+        process_chunk_with_crawler = partial(process_chunk, crawler=crawler)
+        
         # Use the chunk processor to handle the content with a smaller chunk size
         results = await process_text_in_chunks(
             text=content,
-            process_func=process_chunk,
+            process_func=process_chunk_with_crawler,
             max_tokens_per_chunk=2000,  # Reduced from 4000 to 2000
             tokens_per_minute=tokens_per_minute,
             verbose=verbose

@@ -3,7 +3,7 @@ Main crawling functionality for the web crawler.
 """
 import asyncio
 from typing import List, Set, Tuple, Any, Optional
-from crawl4ai import AsyncWebCrawler, CrawlerRunConfig, CacheMode
+from crawl4ai import AsyncWebCrawler, CrawlerRunConfig, CacheMode, BrowserConfig
 from .content_processor import process_page_content
 
 async def check_no_results(
@@ -22,23 +22,17 @@ async def check_no_results(
     Returns:
         bool: True if "No Results Found" message is found, False otherwise.
     """
-    # Fetch the page without any CSS selector or extraction strategy
+    # Use the crawler's arun method with a simple configuration
     result = await crawler.arun(
         url=url,
         config=CrawlerRunConfig(
             cache_mode=CacheMode.BYPASS,
-            session_id=session_id,
+            session_id=f"{session_id}_check_no_results"
         ),
     )
-
-    if result.success:
-        if "No Results Found" in result.cleaned_html:
-            return True
-    else:
-        print(
-            f"Error fetching page for 'No Results Found' check: {result.error_message}"
-        )
-
+    
+    if result.success and result.cleaned_html and "No Results Found" in result.cleaned_html:
+        return True
     return False
 
 async def fetch_and_process_page(
@@ -50,7 +44,6 @@ async def fetch_and_process_page(
     session_id: str,
     required_keys: List[str],
     seen_names: Set[str],
-    browser_config: Optional[dict] = None,
 ) -> Tuple[List[dict], bool]:
     """
     Fetches and processes a single page of offer data with rate limiting and error handling.
@@ -89,15 +82,15 @@ async def fetch_and_process_page(
                 print("No more results found. Ending crawl.")
                 return [], True  # No more results, signal to stop crawling
 
-            # First, fetch just the raw HTML content
-            config = CrawlerRunConfig(
-                cache_mode=CacheMode.BYPASS,
-                css_selector=css_selector,
-                session_id=f"{session_id}_page{page_number}_fetch"
+            # Use the crawler's arun method with the CSS selector
+            result = await crawler.arun(
+                url=url,
+                config=CrawlerRunConfig(
+                    cache_mode=CacheMode.BYPASS,
+                    session_id=f"{session_id}_page{page_number}",
+                    css_selector=css_selector
+                ),
             )
-            
-            # Fetch the raw content
-            result = await crawler.arun(url=url, config=config)
             
             if not result.success:
                 error_msg = result.error_message or "Unknown error"
@@ -114,7 +107,7 @@ async def fetch_and_process_page(
                 required_keys=required_keys,
                 seen_names=seen_names,
                 base_url=base_url,
-                browser_config=browser_config,  # Use the passed browser config
+                crawler=crawler,  # Pass the crawler instance
                 verbose=True
             )
             
