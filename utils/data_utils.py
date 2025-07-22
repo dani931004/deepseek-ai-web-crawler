@@ -15,11 +15,17 @@ def save_offers_to_csv(offers: list, filename: str, model: type):
         return
 
     # Use field names from the DariTourOffer model
-    fieldnames = model.model_fields.keys()
+    fieldnames = list(model.model_fields.keys())
+    
+    # Create a copy of each offer without the 'error' field
+    cleaned_offers = []
+    for offer in offers:
+        cleaned_offer = {k: v for k, v in offer.items() if k in fieldnames}
+        cleaned_offers.append(cleaned_offer)
 
     with open(filename, mode="w", newline="", encoding="utf-8") as file:
         writer = csv.DictWriter(file, fieldnames=fieldnames)
         writer.writeheader()
-        writer.writerows(offers)
-    print(f"Saved {len(offers)} offers to '{filename}'.")
-    return offers
+        writer.writerows(cleaned_offers)
+    print(f"Saved {len(cleaned_offers)} offers to '{filename}'.")
+    return cleaned_offers

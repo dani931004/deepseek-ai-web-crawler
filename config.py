@@ -4,7 +4,7 @@
 BASE_URL_DARI_TOUR_OFFERS = "https://dari-tour.com/lyato-2025"
 CSS_SELECTOR_DARI_TOUR_OFFERS = ".offer-item"
 REQUIRED_KEYS_DARI_TOUR_OFFERS = [
-    "title",
+    "name",  # Changed from "title" to match the model
     "date",
     "price",
     "transport_type",

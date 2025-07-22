@@ -78,6 +78,10 @@ async def crawl_dari_tour_offers():
                 print(f"Failed to load page: {url}")
                 return
                 
+            # Save the full HTML for debugging
+            with open('debug_page.html', 'w', encoding='utf-8') as f:
+                f.write(result.html)
+                
             # Use BeautifulSoup to parse the HTML and get all offer items
             soup = BeautifulSoup(result.html, 'html.parser')
             offer_elements = soup.select(CSS_SELECTOR_DARI_TOUR_OFFERS)
@@ -85,14 +89,22 @@ async def crawl_dari_tour_offers():
             if not offer_elements:
                 print(f"No offer items found on {url}")
                 return
+                
             print(f"Found {len(offer_elements)} offer items to process...")
+            
+            # Debug: Print the first offer's HTML structure
+            if offer_elements:
+                with open('debug_offer_element.html', 'w', encoding='utf-8') as f:
+                    f.write(str(offer_elements[0]))
+                print("Saved first offer's HTML structure to debug_offer_element.html")
             
             # Now process each offer item individually with rate limiting
             offers = []
-            total_offers = len(offer_elements)
+            total_offers = min(5, len(offer_elements))  # Only process 3 offers for testing
             processed_count = 0
+            max_retries = 3  # Maximum number of retries for rate limiting
             
-            for i, offer_element in enumerate(offer_elements, 1):
+            for i, offer_element in enumerate(offer_elements[:total_offers], 1):
                 try:
                     print(f"Processing offer {i}/{total_offers}...")
                     
@@ -116,6 +128,23 @@ async def crawl_dari_tour_offers():
                     import os
                     import urllib.parse
                     
+                    # Extract the actual offer URL from the offer element
+                    # The offer element itself is an <a> tag with class 'offer-item'
+                    actual_url = None
+                    if offer_element.name == 'a' and 'href' in offer_element.attrs:
+                        href = offer_element['href']
+                        if href.startswith('http'):
+                            actual_url = href
+                        else:
+                            # Handle relative URLs
+                            actual_url = f"https://dari-tour.com/{href.lstrip('/')}"
+                        
+                        # Clean up the URL by removing any query parameters or fragments
+                        actual_url = actual_url.split('?')[0].split('#')[0]
+                        print(f"Debug - Extracted URL: {actual_url}")
+                    else:
+                        print("Warning: Could not find URL in offer element")
+                    
                     # Create a temporary file for the offer HTML
                     with tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False) as f:
                         # Create a complete HTML document with the offer
@@ -125,9 +154,11 @@ async def crawl_dari_tour_offers():
                         <head>
                             <meta charset="UTF-8">
                             <title>Offer {i}</title>
+                            <base href="https://dari-tour.com/">
                         </head>
                         <body>
                             {str(offer_element)}
+                            <!-- Actual URL: {actual_url} -->
                         </body>
                         </html>
                         """)
@@ -153,26 +184,97 @@ async def crawl_dari_tour_offers():
                             magic=False    # Disable magic to reduce complexity
                         )
                         
-                        # Process the offer using file:// URL
+                        # Process the offer using file:// URL with rate limit handling
                         file_url = f"file://{temp_file_path}"
-                        offer_result = await crawler.arun(
-                            file_url,
-                            config=offer_config
-                        )
+                        retry_count = 0
+                        success = False
+                        
+                        while retry_count < max_retries and not success:
+                            try:
+                                offer_result = await crawler.arun(
+                                    file_url,
+                                    config=offer_config
+                                )
+                                success = True  # If we get here, the request was successful
+                                
+                            except Exception as e:
+                                if "rate_limit" in str(e).lower() or "429" in str(e):
+                                    retry_count += 1
+                                    wait_time = (2 ** retry_count) + random.random()  # Exponential backoff with jitter
+                                    print(f"Rate limit hit. Waiting {wait_time:.1f} seconds before retry {retry_count}/{max_retries}...")
+                                    await asyncio.sleep(wait_time)
+                                else:
+                                    raise  # Re-raise if it's not a rate limit error
+                        
+                        if not success:
+                            print(f"Failed to process offer after {max_retries} retries due to rate limits. Skipping...")
+                            continue
                     
                         if offer_result and offer_result.extracted_content:
-                            if isinstance(offer_result.extracted_content, list):
-                                valid_offers = [offer for offer in offer_result.extracted_content 
-                                              if isinstance(offer, dict) and all(key in offer for key in REQUIRED_KEYS_DARI_TOUR_OFFERS)]
-                                if valid_offers:
-                                    offers.extend(valid_offers)
-                                    processed_count += 1
-                                    print(f"Successfully extracted {len(valid_offers)} valid offers from this item")
-                            elif isinstance(offer_result.extracted_content, dict):
-                                if all(key in offer_result.extracted_content for key in REQUIRED_KEYS_DARI_TOUR_OFFERS):
-                                    offers.append(offer_result.extracted_content)
-                                    processed_count += 1
-                                    print("Successfully extracted 1 valid offer")
+                            try:
+                                # Check if the content is a string that looks like JSON
+                                if isinstance(offer_result.extracted_content, str) and \
+                                   (offer_result.extracted_content.startswith('[') or 
+                                    offer_result.extracted_content.startswith('{')):
+                                    try:
+                                        parsed_content = json.loads(offer_result.extracted_content)
+                                        print("Successfully parsed JSON content")
+                                        extracted_content = parsed_content
+                                    except json.JSONDecodeError as e:
+                                        print(f"Failed to parse JSON content: {e}")
+                                        extracted_content = offer_result.extracted_content
+                                else:
+                                    extracted_content = offer_result.extracted_content
+                                
+                                print("\nDebug - Extracted content type:", type(extracted_content))
+                                print("Debug - Required keys:", REQUIRED_KEYS_DARI_TOUR_OFFERS)
+                                
+                                if isinstance(extracted_content, list):
+                                    valid_offers = []
+                                    for i, offer in enumerate(extracted_content):
+                                        if not isinstance(offer, dict):
+                                            print(f"Debug - Offer {i} is not a dictionary:", offer)
+                                            continue
+                                        missing_keys = [key for key in REQUIRED_KEYS_DARI_TOUR_OFFERS if key not in offer]
+                                        if missing_keys:
+                                            print(f"Debug - Offer {i} is missing keys: {missing_keys}")
+                                            print(f"Debug - Available keys: {list(offer.keys())}")
+                                        else:
+                                            valid_offers.append(offer)
+                                    
+                                    if valid_offers:
+                                        # Add the actual URL to each offer
+                                        for offer in valid_offers:
+                                            if actual_url:
+                                                offer['link'] = actual_url
+                                                print(f"Debug - Set link to: {actual_url}")
+                                            else:
+                                                print("Warning: No URL found for offer")
+                                        
+                                        offers.extend(valid_offers)
+                                        processed_count += 1
+                                        print(f"Successfully extracted {len(valid_offers)} valid offers from this item")
+                                    else:
+                                        print("No valid offers found in the list after validation")
+                                
+                                elif isinstance(extracted_content, dict):
+                                    missing_keys = [key for key in REQUIRED_KEYS_DARI_TOUR_OFFERS if key not in extracted_content]
+                                    if missing_keys:
+                                        print(f"Debug - Single offer is missing keys: {missing_keys}")
+                                        print(f"Debug - Available keys: {list(extracted_content.keys())}")
+                                    else:
+                                        offers.append(extracted_content)
+                                        processed_count += 1
+                                        print("Successfully extracted 1 valid offer")
+                                
+                                else:
+                                    print(f"Debug - Unexpected extracted content type: {type(extracted_content)}")
+                                    print(f"Content: {extracted_content}")
+                            
+                            except Exception as e:
+                                print(f"Error processing extracted content: {str(e)}")
+                                print(f"Content type: {type(offer_result.extracted_content)}")
+                                print(f"Content: {offer_result.extracted_content}")
                         
                     except Exception as e:
                         print(f"Error processing offer {i}: {str(e)}")
