@@ -72,11 +72,11 @@ def get_llm_strategy(model: Type[Any]) -> LLMExtractionStrategy:
         frequency_penalty=0.1,  # Discourage repetition
         presence_penalty=0.1,   # Encourage diversity
         retry_attempts=2,       # Fewer retries to avoid rate limits
-        retry_delay=15,         # Longer delay between retries
-        request_timeout=120,     # Longer timeout for slower responses
+        retry_delay=30,         # Longer delay between retries
+        request_timeout=180,     # Even longer timeout for slower responses
         rate_limit={
-            'tokens_per_minute': 6000,  # Adjusted token limit
-            'requests_per_minute': 10,   # Adjusted requests per minute
+            'tokens_per_minute': 3000,  # More conservative token limit
+            'requests_per_minute': 5,   # More conservative requests per minute
             'tokens_per_request': 2000   # Adjusted tokens per request
         },
         extract_rules={
