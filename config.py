@@ -6,9 +6,10 @@ from pathlib import Path
 BASE_DIR = Path(__file__).parent
 DATA_DIR = BASE_DIR / "dari_tour_files"
 DETAILS_DIR = DATA_DIR / "detailed_offers"
+HOTEL_DETAILS_DIR = DETAILS_DIR / "hotel_details"
 
 # Ensure directories exist
-for directory in [DATA_DIR, DETAILS_DIR]:
+for directory in [DATA_DIR, DETAILS_DIR, HOTEL_DETAILS_DIR]:
     directory.mkdir(parents=True, exist_ok=True)
 
 # Dari Tour Offers

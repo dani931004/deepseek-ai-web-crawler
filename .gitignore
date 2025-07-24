@@ -30,3 +30,4 @@ ENV/
 # Project specific
 *.csv
 .DS_Store
+dari_tour_files/
