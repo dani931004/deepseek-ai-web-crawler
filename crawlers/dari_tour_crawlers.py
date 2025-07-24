@@ -129,7 +129,7 @@ async def crawl_dari_tour_offers():
             processed_count = 0
             max_retries = 3  # Maximum number of retries for rate limiting
             
-            for i, offer_element in enumerate(offer_elements[:6], 1): # limit offers to 6
+            for i, offer_element in enumerate(offer_elements, 1): # limit offers to 6
                 # Extract the actual offer URL and name from the offer element
                 actual_url = None
                 offer_name = ""
