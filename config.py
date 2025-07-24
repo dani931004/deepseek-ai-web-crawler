@@ -34,7 +34,6 @@ REQUIRED_KEYS_ANGEL_TRAVEL_OFFERS = [
 ]
 
 # Detailed offers configuration
-# Detailed offers configuration
 DARI_TOUR_DETAILS_DIR = str(DETAILS_DIR)
 
 # CSS Selectors for Detailed Dari Tour Offers
@@ -43,6 +42,8 @@ CSS_SELECTOR_DARI_TOUR_DETAIL_HOTEL_ELEMENTS = "div.resp-tab-content[aria-labell
 CSS_SELECTOR_DARI_TOUR_DETAIL_HOTEL_NAME = "div.title"
 CSS_SELECTOR_DARI_TOUR_DETAIL_HOTEL_PRICE = "div.price"
 CSS_SELECTOR_DARI_TOUR_DETAIL_HOTEL_COUNTRY = "div.info div.country"
+CSS_SELECTOR_DARI_TOUR_DETAIL_HOTEL_LINK = "a"
+CSS_SELECTOR_DARI_TOUR_DETAIL_HOTEL_ITEM_LINK = "a.hotel-item"
 CSS_SELECTOR_DARI_TOUR_DETAIL_PROGRAM = "div.resp-tab-content[aria-labelledby='hor_1_tab_item-1']"
 CSS_SELECTOR_DARI_TOUR_DETAIL_INCLUDED_SERVICES = "div.resp-tab-content[aria-labelledby='hor_1_tab_item-2'] ul li"
 CSS_SELECTOR_DARI_TOUR_DETAIL_EXCLUDED_SERVICES = "div.resp-tab-content[aria-labelledby='hor_1_tab_item-3'] ul li"

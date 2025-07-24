@@ -1,6 +1,6 @@
+import os
 import asyncio
 import json
-import os
 import time
 import random
 import logging
@@ -9,7 +9,7 @@ from typing import List, Dict, Any, Optional, Type
 from crawl4ai import AsyncWebCrawler, CrawlerRunConfig, CacheMode
 from crawl4ai.async_configs import BrowserConfig
 from bs4 import BeautifulSoup
-from config import BASE_URL_DARI_TOUR_OFFERS, CSS_SELECTOR_DARI_TOUR_OFFERS, REQUIRED_KEYS_DARI_TOUR_OFFERS, CSS_SELECTOR_DARI_TOUR_DETAIL_OFFER_NAME, CSS_SELECTOR_DARI_TOUR_DETAIL_HOTEL_ELEMENTS, CSS_SELECTOR_DARI_TOUR_DETAIL_HOTEL_NAME, CSS_SELECTOR_DARI_TOUR_DETAIL_HOTEL_PRICE, CSS_SELECTOR_DARI_TOUR_DETAIL_HOTEL_COUNTRY, CSS_SELECTOR_DARI_TOUR_DETAIL_PROGRAM, CSS_SELECTOR_DARI_TOUR_DETAIL_INCLUDED_SERVICES, CSS_SELECTOR_DARI_TOUR_DETAIL_EXCLUDED_SERVICES, DARI_TOUR_DETAILS_DIR
+from config import BASE_URL_DARI_TOUR_OFFERS, CSS_SELECTOR_DARI_TOUR_OFFERS, REQUIRED_KEYS_DARI_TOUR_OFFERS, CSS_SELECTOR_DARI_TOUR_DETAIL_OFFER_NAME, CSS_SELECTOR_DARI_TOUR_DETAIL_HOTEL_ELEMENTS, CSS_SELECTOR_DARI_TOUR_DETAIL_HOTEL_NAME, CSS_SELECTOR_DARI_TOUR_DETAIL_HOTEL_PRICE, CSS_SELECTOR_DARI_TOUR_DETAIL_HOTEL_COUNTRY, CSS_SELECTOR_DARI_TOUR_DETAIL_PROGRAM, CSS_SELECTOR_DARI_TOUR_DETAIL_INCLUDED_SERVICES, CSS_SELECTOR_DARI_TOUR_DETAIL_EXCLUDED_SERVICES, DARI_TOUR_DETAILS_DIR, CSS_SELECTOR_DARI_TOUR_DETAIL_HOTEL_ITEM_LINK
 from utils.data_utils import (
     save_offers_to_csv,
 )
@@ -19,7 +19,8 @@ from utils.scraper_utils import (
     get_llm_strategy,
     process_page_content,
 )
-import os
+import urllib.parse
+import re
 from models.dari_tour_models import DariTourOffer
 from models.dari_tour_detailed_models import OfferDetails, Hotel
 from utils.data_utils import save_to_json
@@ -28,16 +29,38 @@ import pandas as pd
 
 
 async def crawl_dari_tour_offers():
+    import os
     """
     Crawls offers from Dari Tour website and saves them to a CSV file.
     All offers are on a single page, so no pagination is needed.
     """
+    filepath = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "..",
+        "dari_tour_files",
+        "complete_offers.csv",
+    )
+    print(f"DEBUG: Saving CSV to: {filepath}")
+    
+    # Create directory if it doesn't exist
+    os.makedirs(os.path.dirname(filepath), exist_ok=True)
+
     # Initialize configurations
     browser_config = get_browser_config()
     llm_strategy = get_llm_strategy(DariTourOffer)
     session_id = "offer_crawl_session"
     seen_names = set()
     all_offers = []
+    processed_count = 0
+    max_retries = 3  # Maximum number of retries for rate limiting
+    offers = [] # Initialize offers list here
+
+    # Load existing offers if the CSV file exists
+    if os.path.exists(filepath):
+        existing_offers_df = pd.read_csv(filepath)
+        seen_names = set(existing_offers_df['name'].tolist())
+        all_offers.extend(existing_offers_df.to_dict(orient='records'))
+        print(f"Loaded {len(seen_names)} existing offers from {filepath}")
 
     try:
         # Initialize the crawler once
@@ -103,15 +126,31 @@ async def crawl_dari_tour_offers():
                 print("Saved first offer's HTML structure to debug_offer_element.html")
             
             # Now process each offer item individually with rate limiting
-            offers = []
-            total_offers = min(5, len(offer_elements))  # Only process 3 offers for testing
             processed_count = 0
             max_retries = 3  # Maximum number of retries for rate limiting
             
-            for i, offer_element in enumerate(offer_elements[:total_offers], 1):
-                try:
-                    print(f"Processing offer {i}/{total_offers}...")
+            for i, offer_element in enumerate(offer_elements[:6], 1): # limit offers to 6
+                # Extract the actual offer URL and name from the offer element
+                actual_url = None
+                offer_name = ""
+                if offer_element.name == 'a' and 'href' in offer_element.attrs:
+                    href = offer_element['href']
+                    if href.startswith('http'):
+                        actual_url = href
+                    else:
+                        actual_url = f"https://dari-tour.com/{href.lstrip('/')}"
+                    actual_url = actual_url.split('?')[0].split('#')[0]
                     
+                    # Attempt to get the offer name from a common selector within the offer_element
+                    name_el = offer_element.select_one(".title")
+                    if name_el:
+                        offer_name = name_el.get_text(strip=True)
+
+                if offer_name and offer_name in seen_names:
+                    print(f"Skipping already processed offer: {offer_name}")
+                    continue
+
+                try:
                     # Implement exponential backoff with jitter for rate limiting
                     if processed_count > 0:  # No delay for the first request
                         base_delay = 5.0  # Start with 5 seconds base delay
@@ -122,7 +161,7 @@ async def crawl_dari_tour_offers():
                         delay = min(base_delay * (2 ** (processed_count // 5)) * jitter, max_delay)
                         
                         # Add additional delay if we're processing many offers
-                        if total_offers > 20:
+                        if len(offer_elements) > 20:
                             delay = min(delay * 1.5, max_delay)
                             
                         print(f"Waiting {delay:.1f} seconds before processing next offer...")
@@ -132,23 +171,9 @@ async def crawl_dari_tour_offers():
                     import os
                     import urllib.parse
                     
-                    # Extract the actual offer URL from the offer element
-                    # The offer element itself is an <a> tag with class 'offer-item'
-                    actual_url = None
-                    if offer_element.name == 'a' and 'href' in offer_element.attrs:
-                        href = offer_element['href']
-                        if href.startswith('http'):
-                            actual_url = href
-                        else:
-                            # Handle relative URLs
-                            actual_url = f"https://dari-tour.com/{href.lstrip('/')}"
-                        
-                        # Clean up the URL by removing any query parameters or fragments
-                        actual_url = actual_url.split('?')[0].split('#')[0]
-                        print(f"Debug - Extracted URL: {actual_url}")
-                    else:
-                        print("Warning: Could not find URL in offer element")
-                    
+                    print(f"Processing offer {i}/{len(offer_elements)}...")
+                    print(f"Debug - Extracted URL: {actual_url}")
+
                     # Create a temporary file for the offer HTML
                     with tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False) as f:
                         # Create a complete HTML document with the offer
@@ -204,9 +229,23 @@ async def crawl_dari_tour_offers():
                             except Exception as e:
                                 if "rate_limit" in str(e).lower() or "429" in str(e):
                                     retry_count += 1
-                                    wait_time = (2 ** retry_count) + random.random()  # Exponential backoff with jitter
-                                    print(f"Rate limit hit. Waiting {wait_time:.1f} seconds before retry {retry_count}/{max_retries}...")
-                                    await asyncio.sleep(wait_time)
+                                    wait_time_to_use = (2 ** retry_count) + random.random()  # Default exponential backoff with jitter
+
+                                    print(f"DEBUG: Exception string: {str(e)}") # Debug line
+
+                                    # Attempt to extract precise wait time from Groq error message
+                                    match = re.search(r"Please try again in (\d+\.?\d*)s", str(e))
+                                    if match:
+                                        try:
+                                            precise_wait_time = float(match.group(1))
+                                            wait_time_to_use = precise_wait_time # Use the precise time directly
+                                            print(f"Groq rate limit requested wait time: {precise_wait_time:.3f}s")
+                                        except ValueError:
+                                            print("DEBUG: ValueError when parsing precise_wait_time.")
+                                            pass # Fallback to default if parsing fails
+
+                                    print(f"DEBUG: Sleeping for {wait_time_to_use:.3f} seconds.")
+                                    await asyncio.sleep(wait_time_to_use)
                                 else:
                                     raise  # Re-raise if it's not a rate limit error
                         
@@ -218,7 +257,7 @@ async def crawl_dari_tour_offers():
                             try:
                                 # Check if the content is a string that looks like JSON
                                 if isinstance(offer_result.extracted_content, str) and \
-                                   (offer_result.extracted_content.startswith('[') or 
+                                   (offer_result.extracted_content.startswith('[') or \
                                     offer_result.extracted_content.startswith('{')):
                                     try:
                                         parsed_content = json.loads(offer_result.extracted_content)
@@ -255,9 +294,15 @@ async def crawl_dari_tour_offers():
                                             else:
                                                 print("Warning: No URL found for offer")
                                         
-                                        offers.extend(valid_offers)
-                                        processed_count += 1
-                                        print(f"Successfully extracted {len(valid_offers)} valid offers from this item")
+                                        # Check if the offer is already in seen_names before adding
+                                        for offer_item in valid_offers:
+                                            if offer_item['name'] not in seen_names:
+                                                offers.append(offer_item)
+                                                seen_names.add(offer_item['name'])
+                                                processed_count += 1
+                                                print(f"Successfully extracted and added new offer: {offer_item['name']}")
+                                            else:
+                                                print(f"Skipping already processed offer: {offer_item['name']}")
                                     else:
                                         print("No valid offers found in the list after validation")
                                 
@@ -267,9 +312,13 @@ async def crawl_dari_tour_offers():
                                         print(f"Debug - Single offer is missing keys: {missing_keys}")
                                         print(f"Debug - Available keys: {list(extracted_content.keys())}")
                                     else:
-                                        offers.append(extracted_content)
-                                        processed_count += 1
-                                        print("Successfully extracted 1 valid offer")
+                                        if extracted_content['name'] not in seen_names:
+                                            offers.append(extracted_content)
+                                            seen_names.add(extracted_content['name'])
+                                            processed_count += 1
+                                            print(f"Successfully extracted and added new offer: {extracted_content['name']}")
+                                        else:
+                                            print(f"Skipping already processed offer: {extracted_content['name']}")
                                 
                                 else:
                                     print(f"Debug - Unexpected extracted content type: {type(extracted_content)}")
@@ -377,13 +426,18 @@ async def parse_detailed_offer(html_content: str) -> Optional[OfferDetails]:
         name_el = hotel_el.select_one(CSS_SELECTOR_DARI_TOUR_DETAIL_HOTEL_NAME)
         price_el = hotel_el.select_one(CSS_SELECTOR_DARI_TOUR_DETAIL_HOTEL_PRICE)
         country_el = hotel_el.select_one(CSS_SELECTOR_DARI_TOUR_DETAIL_HOTEL_COUNTRY)
+        link_el = hotel_el.select_one(CSS_SELECTOR_DARI_TOUR_DETAIL_HOTEL_ITEM_LINK)
 
         hotel_name = name_el.get_text(strip=True) if name_el else ""
         hotel_price = price_el.get_text(strip=True) if price_el else ""
         hotel_country = country_el.get_text(strip=True) if country_el else ""
+        hotel_link = None
+        if link_el and 'href' in link_el.attrs:
+            relative_url = link_el['href']
+            hotel_link = urllib.parse.urljoin("https://dari-tour.com/", relative_url)
         
         if hotel_name and hotel_price and hotel_country:
-            hotels_data.append(Hotel(name=hotel_name, price=hotel_price, country=hotel_country))
+            hotels_data.append(Hotel(name=hotel_name, price=hotel_price, country=hotel_country, link=hotel_link))
 
     program_element = soup.select_one(CSS_SELECTOR_DARI_TOUR_DETAIL_PROGRAM)
     program = program_element.get_text(strip=True) if program_element else ""
@@ -426,12 +480,33 @@ async def crawl_dari_tour_detailed_offers():
     output_dir = DARI_TOUR_DETAILS_DIR
     os.makedirs(output_dir, exist_ok=True)
 
+    # Get a list of already processed detailed offer slugs
+    processed_slugs = set()
+    if os.path.exists(output_dir):
+        for filename in os.listdir(output_dir):
+            if filename.endswith(".json"):
+                processed_slugs.add(filename.replace(".json", ""))
+
+    # Filter out offers that have already been processed
+    offers_to_process = []
+    for index, row in offers_df.iterrows():
+        offer_name = row['name']
+        offer_slug = offer_name.lower().replace(' ', '-')
+        if offer_slug not in processed_slugs:
+            offers_to_process.append(row)
+        else:
+            print(f"Skipping {offer_name} as it has already been processed.")
+
+    if not offers_to_process:
+        print("All detailed offers have already been processed.")
+        return
+
     async with AsyncWebCrawler(config=BrowserConfig(headers={
         "Accept-Language": "bg-BG,bg;q=0.9"
     })) as crawler:
 
         # Process each offer
-        for index, row in offers_df.iterrows():
+        for row in offers_to_process:
             offer_url = row['link']
             offer_name = row['name']
             # Create a slug from the offer name to use as a filename
@@ -439,11 +514,6 @@ async def crawl_dari_tour_detailed_offers():
 
             # Define the path for the output JSON file
             output_path = os.path.join(output_dir, f"{offer_slug}.json")
-
-            # Skip if the file already exists
-            if os.path.exists(output_path):
-                print(f"Skipping {offer_url} as it has already been processed.")
-                continue
 
             print(f"Processing offer: {offer_name}")
             print(f"URL: {offer_url}")

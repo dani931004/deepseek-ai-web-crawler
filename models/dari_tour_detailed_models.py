@@ -5,6 +5,7 @@ class Hotel(BaseModel):
     name: str = Field(..., description="The name of the hotel")
     price: str = Field(..., description="The price of the hotel stay")
     country: str = Field(..., description="The country and number of nights")
+    link: Optional[str] = Field(None, description="The link to the hotel details page")
 
 class OfferDetails(BaseModel):
     # This is the main model that encapsulates all the details of an offer.

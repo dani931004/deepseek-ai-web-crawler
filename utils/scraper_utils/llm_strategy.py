@@ -71,7 +71,8 @@ def get_llm_strategy(model: Type[Any]) -> LLMExtractionStrategy:
         top_p=0.85,             # More focused sampling
         frequency_penalty=0.1,  # Discourage repetition
         presence_penalty=0.1,   # Encourage diversity
-        retry_attempts=2,       # Fewer retries to avoid rate limits
+        retry_attempts=0,       # Disable internal retries to allow custom handling
+        num_retries=0,          # Explicitly disable LiteLLM's internal retries
         retry_delay=30,         # Longer delay between retries
         request_timeout=180,     # Even longer timeout for slower responses
         rate_limit={
