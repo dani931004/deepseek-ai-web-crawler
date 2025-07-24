@@ -1,4 +1,5 @@
 import csv
+import json
 
 
 def is_duplicate_offer(offer_name: str, seen_names: set) -> bool:
@@ -29,3 +30,7 @@ def save_offers_to_csv(offers: list, filename: str, model: type):
         writer.writerows(cleaned_offers)
     print(f"Saved {len(cleaned_offers)} offers to '{filename}'.")
     return cleaned_offers
+
+def save_to_json(data, filename: str):
+    with open(filename, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)

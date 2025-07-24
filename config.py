@@ -1,4 +1,15 @@
 # config.py
+import os
+from pathlib import Path
+
+# Base directories
+BASE_DIR = Path(__file__).parent.parent
+DATA_DIR = BASE_DIR / "dari_tour_files"
+DETAILS_DIR = DATA_DIR / "detailed_offers"
+
+# Ensure directories exist
+for directory in [DATA_DIR, DETAILS_DIR]:
+    directory.mkdir(parents=True, exist_ok=True)
 
 # Dari Tour Offers
 BASE_URL_DARI_TOUR_OFFERS = "https://dari-tour.com/lyato-2025"
@@ -21,3 +32,46 @@ REQUIRED_KEYS_ANGEL_TRAVEL_OFFERS = [
     "transport_type",
     "link",
 ]
+
+# Detailed offers configuration
+DARI_TOUR_DETAILS_DIR = str(DETAILS_DIR)
+
+def ensure_directory_exists(directory: str):
+    """Ensure that a directory exists, create it if it doesn't.
+    
+    Args:
+        directory: Path to the directory
+    """
+    os.makedirs(directory, exist_ok=True)
+
+
+def get_browser_config():
+    """Get the browser configuration for the crawler.
+    
+    Returns:
+        dict: Browser configuration
+    """
+    return {
+        "browser_type": "chromium",
+        "headless": True,
+        "viewport_width": 1920,
+        "viewport_height": 1080,
+        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        "ignore_https_errors": True,
+        "java_script_enabled": True,
+        "verbose": True,
+        "extra_args": [
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+            "--disable-dev-shm-usage",
+            "--disable-accelerated-2d-canvas",
+            "--no-first-run",
+            "--no-zygote",
+            "--single-process",
+            "--disable-gpu",
+            "--disable-software-rasterizer",
+            "--disable-web-security",
+            "--disable-features=IsolateOrigins,site-per-process",
+            "--disable-blink-features=AutomationControlled",
+        ],
+    }

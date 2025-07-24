@@ -341,10 +341,12 @@ async def crawl_dari_tour_offers():
 
     # Save the collected offers to a CSV file
     filepath = os.path.join(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        os.path.dirname(os.path.abspath(__file__)),
+        "..",
         "dari_tour_files",
         "complete_offers.csv",
     )
+    print(f"DEBUG: Saving CSV to: {filepath}")
     
     # Create directory if it doesn't exist
     os.makedirs(os.path.dirname(filepath), exist_ok=True)

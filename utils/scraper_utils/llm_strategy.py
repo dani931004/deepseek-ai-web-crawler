@@ -30,8 +30,8 @@ def get_llm_strategy(model: Type[Any]) -> LLMExtractionStrategy:
     
     instruction = (
         "Carefully analyze the HTML content and extract structured data according to the following schema:\n\n"
-        "Fields to extract (with descriptions):\n" + 
-        "\n".join(field_descriptions) + 
+        "Fields to extract (with descriptions):\n" +
+        "\n".join(field_descriptions) +
         "\n\n"
         "Important guidelines:\n"
         "- Extract ALL available items from the content\n"
@@ -39,7 +39,12 @@ def get_llm_strategy(model: Type[Any]) -> LLMExtractionStrategy:
         "- Ensure all required fields are included in each item\n"
         "- For prices, include the currency symbol if visible\n"
         "- For dates, use the exact format found on the page\n"
-        "- If no items are found, return an empty array"
+        "- If no items are found, return an empty array\n"
+        "- The offer name is found in the `h1` tag with class `antetka-2`.\n"
+        "- Hotels are listed under the 'Хотели' tab, which is a `div` with `aria-labelledby='hor_1_tab_item-0'`. Each hotel item is a `div` with class `col-hotel`. Inside each `col-hotel`, the hotel name is in `div.title`, the price is in `div.price`, and the country/nights information is in `div.info div.country`.\n"
+        "- The program details are under the 'Програма' tab, which is a `div` with `aria-labelledby='hor_1_tab_item-1'`.\n"
+        "- Included services are listed as `li` elements under the 'Цената включва' tab, which is a `div` with `aria-labelledby='hor_1_tab_item-2'`.\n"
+        "- Excluded services are listed as `li` elements under the 'Цената не включва' tab, which is a `div` with `aria-labelledby='hor_1_tab_item-3'`."
     )
     
     # Configure chunking strategy - very conservative to minimize token usage
@@ -61,7 +66,7 @@ def get_llm_strategy(model: Type[Any]) -> LLMExtractionStrategy:
         schema=schema,
         extraction_type="schema",
         instruction=instruction,
-        max_tokens=200,         # Very limited tokens per request
+        max_tokens=2000,         # Increased token limit for detailed extraction
         temperature=0.1,        # More deterministic output
         top_p=0.85,             # More focused sampling
         frequency_penalty=0.1,  # Discourage repetition
@@ -70,20 +75,16 @@ def get_llm_strategy(model: Type[Any]) -> LLMExtractionStrategy:
         retry_delay=15,         # Longer delay between retries
         request_timeout=120,     # Longer timeout for slower responses
         rate_limit={
-            'tokens_per_minute': 1000,  # Very conservative token limit
-            'requests_per_minute': 3,   # Very few requests per minute
-            'tokens_per_request': 200   # Very small chunks per request
+            'tokens_per_minute': 6000,  # Adjusted token limit
+            'requests_per_minute': 10,   # Adjusted requests per minute
+            'tokens_per_request': 2000   # Adjusted tokens per request
         },
         extract_rules={
             'chunking': chunking_config,
             'extraction_type': 'structured',
             'output_format': 'json',
             'required_fields': [
-                'title',
-                'date',
-                'price',
-                'transport_type',
-                'link'
+                'offer_name'
             ],
             'allow_partial': True,
             'error_handling': 'skip',
@@ -92,19 +93,19 @@ def get_llm_strategy(model: Type[Any]) -> LLMExtractionStrategy:
         content_extraction={
             'extract_main_content': False,
             'ignore_boilerplate': True,
-            'min_text_length': 50,    # Slightly higher to avoid tiny fragments
-            'max_text_length': 500,   # Much smaller max length
-            'include_links': False,   # Exclude links to reduce tokens
-            'include_images': False,  # No images
-            'include_tables': False,  # No tables
-            'simplify_html': True,    # Simplify HTML structure
-            'remove_empty_nodes': True,  # Remove empty elements
-            'normalize_whitespace': True  # Clean up whitespace
+            'min_text_length': 50,
+            'max_text_length': 2000, # Increased max length
+            'include_links': False,
+            'include_images': False,
+            'include_tables': False,
+            'simplify_html': True,
+            'remove_empty_nodes': True,
+            'normalize_whitespace': True
         },
         optimization={
             'remove_duplicate_blocks': True,
             'merge_short_blocks': False,
-            'max_blocks_per_page': 10,  # Fewer blocks to process
+            'max_blocks_per_page': 10,
             'sort_blocks': 'position'
         }
     )
