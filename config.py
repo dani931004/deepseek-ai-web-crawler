@@ -63,22 +63,24 @@ def ensure_directory_exists(directory: str):
     os.makedirs(directory, exist_ok=True)
 
 
-def get_browser_config():
+from crawl4ai import BrowserConfig
+
+def get_browser_config() -> BrowserConfig:
     """Get the browser configuration for the crawler.
     
     Returns:
-        dict: Browser configuration
+        BrowserConfig: Browser configuration
     """
-    return {
-        "browser_type": "chromium",
-        "headless": True,
-        "viewport_width": 1920,
-        "viewport_height": 1080,
-        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-        "ignore_https_errors": True,
-        "java_script_enabled": True,
-        "verbose": True,
-        "extra_args": [
+    return BrowserConfig(
+        browser_type="chromium",
+        headless=True,
+        viewport_width=1920,
+        viewport_height=1080,
+        user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        ignore_https_errors=True,
+        java_script_enabled=True,
+        verbose=True,
+        extra_args=[
             "--no-sandbox",
             "--disable-setuid-sandbox",
             "--disable-dev-shm-usage",
@@ -92,4 +94,4 @@ def get_browser_config():
             "--disable-features=IsolateOrigins,site-per-process",
             "--disable-blink-features=AutomationControlled",
         ],
-    }
+    )

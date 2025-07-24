@@ -6,16 +6,16 @@ import random
 import logging
 from datetime import datetime
 from typing import List, Dict, Any, Optional, Type
-from crawl4ai import AsyncWebCrawler, CrawlerRunConfig, CacheMode
-from crawl4ai.async_configs import BrowserConfig
+from crawl4ai import AsyncWebCrawler, CrawlerRunConfig, CacheMode, BrowserConfig
+from config import get_browser_config
+
 from bs4 import BeautifulSoup
-from config import BASE_URL_DARI_TOUR_OFFERS, CSS_SELECTOR_DARI_TOUR_OFFERS, REQUIRED_KEYS_DARI_TOUR_OFFERS, CSS_SELECTOR_DARI_TOUR_DETAIL_OFFER_NAME, CSS_SELECTOR_DARI_TOUR_DETAIL_HOTEL_ELEMENTS, CSS_SELECTOR_DARI_TOUR_DETAIL_HOTEL_NAME, CSS_SELECTOR_DARI_TOUR_DETAIL_HOTEL_PRICE, CSS_SELECTOR_DARI_TOUR_DETAIL_HOTEL_COUNTRY, CSS_SELECTOR_DARI_TOUR_DETAIL_PROGRAM, CSS_SELECTOR_DARI_TOUR_DETAIL_INCLUDED_SERVICES, CSS_SELECTOR_DARI_TOUR_DETAIL_EXCLUDED_SERVICES, DARI_TOUR_DETAILS_DIR, CSS_SELECTOR_DARI_TOUR_DETAIL_HOTEL_ITEM_LINK, CSS_SELECTOR_OFFER_ITEM_TITLE, CSS_SELECTOR_OFFER_ITEM_TITLE
+from config import BASE_URL_DARI_TOUR_OFFERS, CSS_SELECTOR_DARI_TOUR_OFFERS, REQUIRED_KEYS_DARI_TOUR_OFFERS, CSS_SELECTOR_DARI_TOUR_DETAIL_OFFER_NAME, CSS_SELECTOR_DARI_TOUR_DETAIL_HOTEL_ELEMENTS, CSS_SELECTOR_DARI_TOUR_DETAIL_HOTEL_NAME, CSS_SELECTOR_DARI_TOUR_DETAIL_HOTEL_PRICE, CSS_SELECTOR_DARI_TOUR_DETAIL_HOTEL_COUNTRY, CSS_SELECTOR_DARI_TOUR_DETAIL_PROGRAM, CSS_SELECTOR_DARI_TOUR_DETAIL_INCLUDED_SERVICES, CSS_SELECTOR_DARI_TOUR_DETAIL_EXCLUDED_SERVICES, DARI_TOUR_DETAILS_DIR, CSS_SELECTOR_DARI_TOUR_DETAIL_HOTEL_ITEM_LINK, CSS_SELECTOR_OFFER_ITEM_TITLE
 from utils.data_utils import (
     save_offers_to_csv,
 )
 from utils.scraper_utils import (
     fetch_and_process_page,
-    get_browser_config,
     get_llm_strategy,
     process_page_content,
 )
@@ -501,9 +501,11 @@ async def crawl_dari_tour_detailed_offers():
         print("All detailed offers have already been processed.")
         return
 
-    async with AsyncWebCrawler(config=BrowserConfig(headers={
+    browser_config = get_browser_config()
+    browser_config.headers = {
         "Accept-Language": "bg-BG,bg;q=0.9"
-    })) as crawler:
+    }
+    async with AsyncWebCrawler(config=browser_config) as crawler:
 
         # Process each offer
         for row in offers_to_process:
