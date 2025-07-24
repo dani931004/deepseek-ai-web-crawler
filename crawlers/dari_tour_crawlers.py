@@ -9,7 +9,7 @@ from typing import List, Dict, Any, Optional, Type
 from crawl4ai import AsyncWebCrawler, CrawlerRunConfig, CacheMode
 from crawl4ai.async_configs import BrowserConfig
 from bs4 import BeautifulSoup
-from config import BASE_URL_DARI_TOUR_OFFERS, CSS_SELECTOR_DARI_TOUR_OFFERS, REQUIRED_KEYS_DARI_TOUR_OFFERS, CSS_SELECTOR_DARI_TOUR_DETAIL_OFFER_NAME, CSS_SELECTOR_DARI_TOUR_DETAIL_HOTEL_ELEMENTS, CSS_SELECTOR_DARI_TOUR_DETAIL_HOTEL_NAME, CSS_SELECTOR_DARI_TOUR_DETAIL_HOTEL_PRICE, CSS_SELECTOR_DARI_TOUR_DETAIL_HOTEL_COUNTRY, CSS_SELECTOR_DARI_TOUR_DETAIL_PROGRAM, CSS_SELECTOR_DARI_TOUR_DETAIL_INCLUDED_SERVICES, CSS_SELECTOR_DARI_TOUR_DETAIL_EXCLUDED_SERVICES, DARI_TOUR_DETAILS_DIR, CSS_SELECTOR_DARI_TOUR_DETAIL_HOTEL_ITEM_LINK
+from config import BASE_URL_DARI_TOUR_OFFERS, CSS_SELECTOR_DARI_TOUR_OFFERS, REQUIRED_KEYS_DARI_TOUR_OFFERS, CSS_SELECTOR_DARI_TOUR_DETAIL_OFFER_NAME, CSS_SELECTOR_DARI_TOUR_DETAIL_HOTEL_ELEMENTS, CSS_SELECTOR_DARI_TOUR_DETAIL_HOTEL_NAME, CSS_SELECTOR_DARI_TOUR_DETAIL_HOTEL_PRICE, CSS_SELECTOR_DARI_TOUR_DETAIL_HOTEL_COUNTRY, CSS_SELECTOR_DARI_TOUR_DETAIL_PROGRAM, CSS_SELECTOR_DARI_TOUR_DETAIL_INCLUDED_SERVICES, CSS_SELECTOR_DARI_TOUR_DETAIL_EXCLUDED_SERVICES, DARI_TOUR_DETAILS_DIR, CSS_SELECTOR_DARI_TOUR_DETAIL_HOTEL_ITEM_LINK, CSS_SELECTOR_OFFER_ITEM_TITLE, CSS_SELECTOR_OFFER_ITEM_TITLE
 from utils.data_utils import (
     save_offers_to_csv,
 )
@@ -142,7 +142,7 @@ async def crawl_dari_tour_offers():
                     actual_url = actual_url.split('?')[0].split('#')[0]
                     
                     # Attempt to get the offer name from a common selector within the offer_element
-                    name_el = offer_element.select_one(".title")
+                    name_el = offer_element.select_one(CSS_SELECTOR_OFFER_ITEM_TITLE)
                     if name_el:
                         offer_name = name_el.get_text(strip=True)
 

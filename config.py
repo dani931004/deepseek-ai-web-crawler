@@ -49,6 +49,11 @@ CSS_SELECTOR_DARI_TOUR_DETAIL_PROGRAM = "div.resp-tab-content[aria-labelledby='h
 CSS_SELECTOR_DARI_TOUR_DETAIL_INCLUDED_SERVICES = "div.resp-tab-content[aria-labelledby='hor_1_tab_item-2'] ul li"
 CSS_SELECTOR_DARI_TOUR_DETAIL_EXCLUDED_SERVICES = "div.resp-tab-content[aria-labelledby='hor_1_tab_item-3'] ul li"
 
+# General CSS Selectors
+CSS_SELECTOR_OFFER_ITEM_TITLE = ".title"
+CSS_SELECTOR_HOTEL_MAP_IFRAME = 'iframe[data-src*="maps.google.com"]'
+CSS_SELECTOR_HOTEL_DESCRIPTION_BOX = 'div.details-box'
+
 def ensure_directory_exists(directory: str):
     """Ensure that a directory exists, create it if it doesn't.
     

@@ -8,7 +8,7 @@ from typing import List, Dict, Any, Optional, Type
 from crawl4ai import AsyncWebCrawler, CrawlerRunConfig, CacheMode
 from crawl4ai.async_configs import BrowserConfig
 from bs4 import BeautifulSoup
-from config import DARI_TOUR_DETAILS_DIR, HOTEL_DETAILS_DIR
+from config import DARI_TOUR_DETAILS_DIR, HOTEL_DETAILS_DIR, CSS_SELECTOR_HOTEL_MAP_IFRAME, CSS_SELECTOR_HOTEL_DESCRIPTION_BOX
 from models.hotel_details_model import HotelDetails
 from utils.data_utils import save_to_json
 import pandas as pd
@@ -93,7 +93,7 @@ async def crawl_hotel_details():
                 soup = BeautifulSoup(result.html, 'html.parser')
                 
                 google_map_link = None
-                iframe_element = soup.select_one('iframe[data-src*="maps.google.com"]')
+                iframe_element = soup.select_one(CSS_SELECTOR_HOTEL_MAP_IFRAME)
                 if iframe_element and 'src' in iframe_element.attrs:
                     embed_url = iframe_element['src']
                     parsed_url = urllib.parse.urlparse(embed_url)
@@ -107,7 +107,7 @@ async def crawl_hotel_details():
                         google_map_link = embed_url # Fallback to embed URL if 'q' parameter is not found
                 
                 description = None
-                description_div = soup.select_one('div.details-box')
+                description_div = soup.select_one(CSS_SELECTOR_HOTEL_DESCRIPTION_BOX)
                 if description_div:
                     description = description_div.get_text(strip=True)
                 
