@@ -1,6 +1,17 @@
 import csv
 import json
+import os
+import re
 
+def sanitize_filename(filename: str) -> str:
+    """Sanitizes a string to be safe for use as a filename.
+    Replaces invalid characters with underscores.
+    """
+    # Replace any character that is not a letter, number, hyphen, underscore, or dot with an underscore
+    sanitized = re.sub(r'[^\w\-.]', '_', filename)
+    # Remove leading/trailing underscores or hyphens
+    sanitized = sanitized.strip('_-')
+    return sanitized
 
 def is_duplicate_offer(offer_name: str, seen_names: set) -> bool:
     return offer_name in seen_names
@@ -32,5 +43,6 @@ def save_offers_to_csv(offers: list, filename: str, model: type):
     return cleaned_offers
 
 def save_to_json(data, filename: str):
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
     with open(filename, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=4)

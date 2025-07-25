@@ -10,7 +10,7 @@ from crawl4ai.async_configs import BrowserConfig
 from bs4 import BeautifulSoup
 from config import DARI_TOUR_DETAILS_DIR, HOTEL_DETAILS_DIR, CSS_SELECTOR_HOTEL_MAP_IFRAME, CSS_SELECTOR_HOTEL_DESCRIPTION_BOX
 from models.hotel_details_model import HotelDetails
-from utils.data_utils import save_to_json
+from utils.data_utils import save_to_json, sanitize_filename
 import pandas as pd
 import urllib.parse
 
@@ -54,7 +54,7 @@ async def crawl_hotel_details():
                     if 'link' in hotel and hotel['link']:
                         hotel_name = hotel['name']
                         hotel_link = hotel['link']
-                        hotel_slug = hotel_name.lower().replace(' ', '-')
+                        hotel_slug = sanitize_filename(hotel_name.lower().replace(' ', '-'))
                         
                         if hotel_slug not in processed_hotel_slugs:
                             hotels_to_process.append({
@@ -76,7 +76,7 @@ async def crawl_hotel_details():
             hotel_name = hotel_info['hotel_name']
             hotel_link = hotel_info['hotel_link']
             offer_title = hotel_info['offer_title']
-            hotel_slug = hotel_name.lower().replace(' ', '-')
+            hotel_slug = sanitize_filename(hotel_name.lower().replace(' ', '-'))
             output_path = os.path.join(hotel_details_dir, f"{hotel_slug}.json")
 
             print(f"Processing hotel: {hotel_name} from offer: {offer_title}")
