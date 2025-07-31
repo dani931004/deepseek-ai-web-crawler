@@ -1,43 +1,64 @@
-# config.py
 import os
 from pathlib import Path
+from crawl4ai import BrowserConfig
 
-# Base directories
-BASE_DIR = Path(__file__).parent
-DATA_DIR = BASE_DIR / "dari_tour_files"
-DETAILS_DIR = DATA_DIR / "detailed_offers"
-HOTEL_DETAILS_DIR = DETAILS_DIR / "hotel_details"
+class CrawlerConfig:
+    def __init__(self, name: str, base_url: str, css_selector: str, required_keys: list):
+        self.name = name
+        self.base_url = base_url
+        self.css_selector = css_selector
+        self.required_keys = required_keys
 
-# Ensure directories exist
-for directory in [DATA_DIR, DETAILS_DIR, HOTEL_DETAILS_DIR]:
-    directory.mkdir(parents=True, exist_ok=True)
+        self.BASE_DIR = Path(__file__).parent
+        self.FILES_DIR = self.BASE_DIR / f"{name}_files"
+        self.DETAILS_DIR = self.FILES_DIR / "detailed_offers"
+        self.HOTEL_DETAILS_DIR = self.DETAILS_DIR / "hotel_details"
 
-# Dari Tour Offers
-BASE_URL_DARI_TOUR_OFFERS = "https://dari-tour.com/lyato-2025"
-CSS_SELECTOR_DARI_TOUR_OFFERS = ".offer-item"
-REQUIRED_KEYS_DARI_TOUR_OFFERS = [
-    "name",  # Changed from "title" to match the model
-    "date",
-    "price",
-    "transport_type",
-    "link",
-]
+        for directory in [self.FILES_DIR, self.DETAILS_DIR, self.HOTEL_DETAILS_DIR]:
+            directory.mkdir(parents=True, exist_ok=True)
 
-# Angel travel offers
-BASE_URL_ANGEL_TRAVEL_OFFERS = "https://angeltravel.com/lyato-2025"
-CSS_SELECTOR_ANGEL_TRAVEL_OFFERS = "[class^='col-xl-3 col-lg-3 col-md-4 col-sm-6 col-12 col-offer']"
-REQUIRED_KEYS_ANGEL_TRAVEL_OFFERS = [
-    "title",
-    "date",
-    "price",
-    "transport_type",
-    "link",
-]
+dari_tour_config = CrawlerConfig(
+    name="dari_tour",
+    base_url="https://dari-tour.com/lyato-2025",
+    css_selector=".offer-item",
+    required_keys=["name", "date", "price", "transport_type", "link"],
+)
+
+angel_travel_config = CrawlerConfig(
+    name="angel_travel",
+    base_url="https://www.angeltravel.bg/exotic-destinations",
+    css_selector="ul#accordeonck629 li.accordeonck",
+    required_keys=["title", "dates", "price", "transport_type", "link"],
+)
+
+
+def get_browser_config() -> BrowserConfig:
+    return BrowserConfig(
+        browser_type="chromium",
+        headless=True,
+        viewport_width=1920,
+        viewport_height=1080,
+        user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36",
+        ignore_https_errors=True,
+        java_script_enabled=True,
+        verbose=True,
+        extra_args=[
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+            "--disable-dev-shm-usage",
+            "--disable-accelerated-2d-canvas",
+            "--no-first-run",
+            "--no-zygote",
+            "--disable-gpu"
+        ],
+    )
+
+# General CSS Selectors
+CSS_SELECTOR_OFFER_ITEM_TITLE = ".title"
+CSS_SELECTOR_HOTEL_MAP_IFRAME = 'iframe[data-src*="maps.google.com"]'
+CSS_SELECTOR_HOTEL_DESCRIPTION_BOX = 'div.details-box'
 
 # Detailed offers configuration
-DARI_TOUR_DETAILS_DIR = str(DETAILS_DIR)
-
-# CSS Selectors for Detailed Dari Tour Offers
 CSS_SELECTOR_DARI_TOUR_DETAIL_OFFER_NAME = "h1.antetka-2"
 CSS_SELECTOR_DARI_TOUR_DETAIL_HOTEL_ELEMENTS = "div.resp-tab-content[aria-labelledby='hor_1_tab_item-0'] div.col-hotel"
 CSS_SELECTOR_DARI_TOUR_DETAIL_HOTEL_NAME = "div.title"
@@ -49,39 +70,24 @@ CSS_SELECTOR_DARI_TOUR_DETAIL_PROGRAM = "div.resp-tab-content[aria-labelledby='h
 CSS_SELECTOR_DARI_TOUR_DETAIL_INCLUDED_SERVICES = "div.resp-tab-content[aria-labelledby='hor_1_tab_item-2'] ul li"
 CSS_SELECTOR_DARI_TOUR_DETAIL_EXCLUDED_SERVICES = "div.resp-tab-content[aria-labelledby='hor_1_tab_item-3'] ul li"
 
-# General CSS Selectors
-CSS_SELECTOR_OFFER_ITEM_TITLE = ".title"
-CSS_SELECTOR_HOTEL_MAP_IFRAME = 'iframe[data-src*="maps.google.com"]'
-CSS_SELECTOR_HOTEL_DESCRIPTION_BOX = 'div.details-box'
+CSS_SELECTOR_ANGEL_TRAVEL_DETAIL_OFFER_NAME = "h1.antetka-inner"
+CSS_SELECTOR_ANGEL_TRAVEL_DETAIL_HOTEL_ELEMENTS = "div.resp-tab-content[aria-labelledby='hor_1_tab_item-0'] div.col-hotel"
+CSS_SELECTOR_ANGEL_TRAVEL_DETAIL_HOTEL_NAME = "div.title"
+CSS_SELECTOR_ANGEL_TRAVEL_DETAIL_HOTEL_PRICE = "div.price"
+CSS_SELECTOR_ANGEL_TRAVEL_DETAIL_HOTEL_COUNTRY = "div.info div.country"
+CSS_SELECTOR_ANGEL_TRAVEL_DETAIL_HOTEL_LINK = "a"
+CSS_SELECTOR_ANGEL_TRAVEL_DETAIL_HOTEL_ITEM_LINK = "a.hotel-item"
+CSS_SELECTOR_ANGEL_TRAVEL_DETAIL_PROGRAM = "div.resp-tab-content[aria-labelledby='hor_1_tab_item-1']"
+CSS_SELECTOR_ANGEL_TRAVEL_DETAIL_INCLUDED_SERVICES = "div.resp-tab-content[aria-labelledby='hor_1_tab_item-2'] ul li"
+CSS_SELECTOR_ANGEL_TRAVEL_DETAIL_EXCLUDED_SERVICES = "div.resp-tab-content[aria-labelledby='hor_1_tab_item-3'] ul li"
 
-def ensure_directory_exists(directory: str):
-    """Ensure that a directory exists, create it if it doesn't.
-    
-    Args:
-        directory: Path to the directory
-    """
-    os.makedirs(directory, exist_ok=True)
-
-
-from crawl4ai import BrowserConfig
-
-def get_browser_config() -> BrowserConfig:
-    """Get the browser configuration for the crawler.
-    
-    Returns:
-        BrowserConfig: Browser configuration
-    """
-    return BrowserConfig(
-        browser_type="chromium",
-        headless=True,
-        viewport_width=1920,
-        viewport_height=1080,
-        user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-        ignore_https_errors=True,
-        java_script_enabled=True,
-        verbose=True,
-        extra_args=[
-            "--no-sandbox",
-            "--disable-dev-shm-usage",
-        ],
-    )
+# Angel Travel Detailed offers configuration
+CSS_SELECTOR_ANGEL_TRAVEL_DETAIL_OFFER_NAME = "div.program_once h2 a"
+CSS_SELECTOR_ANGEL_TRAVEL_DETAIL_PROGRAM = "div.ofcontent"
+CSS_SELECTOR_ANGEL_TRAVEL_DETAIL_INCLUDED_SERVICES = ""
+CSS_SELECTOR_ANGEL_TRAVEL_DETAIL_EXCLUDED_SERVICES = ""
+CSS_SELECTOR_ANGEL_TRAVEL_DETAIL_HOTEL_ELEMENTS = "div.once_offer"
+CSS_SELECTOR_ANGEL_TRAVEL_DETAIL_HOTEL_NAME = "div.program_once h2 a"
+CSS_SELECTOR_ANGEL_TRAVEL_DETAIL_HOTEL_PRICE = "font.price"
+CSS_SELECTOR_ANGEL_TRAVEL_DETAIL_HOTEL_COUNTRY = "div.ofcontent"
+CSS_SELECTOR_ANGEL_TRAVEL_DETAIL_HOTEL_ITEM_LINK = "a.but"

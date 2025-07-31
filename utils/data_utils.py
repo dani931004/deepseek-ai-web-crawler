@@ -13,12 +13,7 @@ def sanitize_filename(filename: str) -> str:
     sanitized = sanitized.strip('_-')
     return sanitized
 
-def is_duplicate_offer(offer_name: str, seen_names: set) -> bool:
-    return offer_name in seen_names
 
-
-def is_complete_offer(offer: dict, required_keys: list) -> bool:
-    return all(key in offer for key in required_keys)
 
 
 def save_offers_to_csv(offers: list, filename: str, model: type):
