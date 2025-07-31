@@ -28,6 +28,7 @@ class AngelTravelDetailedCrawler(BaseCrawler):
         self.config = angel_travel_config
         self.output_dir = os.path.join(self.config.FILES_DIR, "detailed_offers")
         os.makedirs(self.output_dir, exist_ok=True)
+        self.seen_items = set() # Clear seen_items before loading existing data
         self._load_existing_data_json(self.output_dir)
 
     async def get_urls_to_crawl(self) -> List[Any]:
@@ -66,7 +67,7 @@ class AngelTravelDetailedCrawler(BaseCrawler):
 
         config = CrawlerRunConfig(
             url=offer_url,
-            cache_mode=self.cache_mode,
+            cache_mode=self.cache_mode
         )
 
         result = await self.crawler.arun(offer_url, config=config)
@@ -142,25 +143,43 @@ class AngelTravelDetailedCrawler(BaseCrawler):
         excluded_services = []
 
         # Extract program
-        program_h2 = soup.find('h2', string='ПРОГРАМА')
+        program_h2 = soup.find('h2', string=re.compile(r'ПРОГРАМА', re.IGNORECASE))
         if program_h2:
-            program_div = program_h2.find_next_sibling('div', class_='resp-tab-content hor_1')
-            if program_div:
-                program = program_div.get_text(separator='\n', strip=True)
+            program_content = []
+            for sibling in program_h2.next_siblings:
+                if sibling.name == 'h2':
+                    break
+                if isinstance(sibling, str):
+                    program_content.append(sibling.strip())
+                elif sibling.name == 'p':
+                    program_content.append(sibling.get_text(strip=True))
+            program = '\n'.join(filter(None, program_content))
 
         # Extract included services
-        included_h2 = soup.find('h2', string='ЦЕНАТА ВКЛЮЧВА')
+        included_h2 = soup.find('h2', string=re.compile(r'ЦЕНАТА ВКЛЮЧВА', re.IGNORECASE))
         if included_h2:
-            included_div = included_h2.find_next_sibling('div', class_='resp-tab-content hor_1')
-            if included_div:
-                included_services = [li.get_text(strip=True) for li in included_div.find_all('li') if li.get_text(strip=True)]
+            included_content = []
+            for sibling in included_h2.next_siblings:
+                if sibling.name == 'h2':
+                    break
+                if isinstance(sibling, str):
+                    included_content.append(sibling.strip())
+                elif sibling.name: # Check if it's a tag
+                    included_content.append(sibling.get_text(strip=True))
+            included_services = [item for item in '\n'.join(filter(None, included_content)).split('\n') if item.strip()]
 
         # Extract excluded services
-        excluded_h2 = soup.find('h2', string='ЦЕНАТА НЕ ВКЛЮЧВА')
+        excluded_h2 = soup.find('h2', string=re.compile(r'ЦЕНАТА НЕ ВКЛЮЧВА', re.IGNORECASE))
         if excluded_h2:
-            excluded_div = excluded_h2.find_next_sibling('div', class_='resp-tab-content hor_1')
-            if excluded_div:
-                excluded_services = [li.get_text(strip=True) for li in excluded_div.find_all('li') if li.get_text(strip=True)]
+            excluded_content = []
+            for sibling in excluded_h2.next_siblings:
+                if sibling.name == 'h2':
+                    break
+                if isinstance(sibling, str):
+                    excluded_content.append(sibling.strip())
+                elif sibling.name: # Check if it's a tag
+                    excluded_content.append(sibling.get_text(strip=True))
+            excluded_services = [item for item in '\n'.join(filter(None, excluded_content)).split('\n') if item.strip()]
 
         if offer_name:
             detailed_offer = AngelTravelDetailedOffer(
@@ -174,9 +193,26 @@ class AngelTravelDetailedCrawler(BaseCrawler):
         return None
 
     def _slugify(self, text: str) -> str:
+        # Convert to lowercase
         text = text.lower()
-        text = re.sub(r'[\n\w\s-]', '', text)
-        text = re.sub(r'[-\s]+', '-', text).strip('-')
+        # Replace Cyrillic characters with their Latin equivalents (basic transliteration)
+        # This is a simplified transliteration and might need to be expanded for full accuracy
+        cyrillic_to_latin = {
+            'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ж': 'zh', 'з': 'z',
+            'и': 'i', 'й': 'y', 'к': 'k', 'л': 'l', 'м': 'm', 'н': 'n', 'о': 'o', 'п': 'p',
+            'р': 'r', 'с': 's', 'т': 't', 'у': 'u', 'ф': 'f', 'х': 'h', 'ц': 'ts', 'ч': 'ch',
+            'ш': 'sh', 'щ': 'sht', 'ъ': 'a', 'ь': 'y', 'ю': 'yu', 'я': 'ya',
+            '': '' # Handle the special character for 'амалфийска-ривиера.json'
+        }
+        for cyr, lat in cyrillic_to_latin.items():
+            text = text.replace(cyr, lat)
+
+        # Replace non-alphanumeric (excluding hyphens) characters with hyphens
+        text = re.sub(r'[^a-z0-9-]+', '-', text)
+        # Remove leading/trailing hyphens
+        text = text.strip('-')
+        # Replace multiple hyphens with a single hyphen
+        text = re.sub(r'-+', '-', text)
         return text
 
     def save_data(self):

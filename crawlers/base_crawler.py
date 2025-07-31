@@ -46,12 +46,14 @@ class BaseCrawler(ABC):
             print(f"Loaded {len(self.seen_items)} existing items from {filepath}")
 
     def _load_existing_data_json(self, dirpath: str):
+        self.seen_items = set() # Ensure seen_items is empty before loading
         if os.path.exists(dirpath):
             for filename in os.listdir(dirpath):
                 if filename.endswith(".json"):
-                    # Assuming the filename is the slugified offer name
                     slugified_name = filename.replace(".json", "")
-                    self.seen_items.add(slugified_name)
+                    if slugified_name: # Only add if not empty
+                        self.seen_items.add(slugified_name)
+                        print(f"DEBUG: Added {slugified_name} to seen_items.")
             print(f"Loaded {len(self.seen_items)} existing items from {dirpath}")
 
     @abstractmethod
@@ -86,6 +88,8 @@ class BaseCrawler(ABC):
 
     async def crawl(self, max_items: Optional[int] = None):
         await self.crawler.__aenter__()
+        self.seen_items.clear() # Clear seen items at the beginning of each crawl
+        self._load_existing_data_json(self.output_dir) # Reload existing data
         
         try:
             urls_to_crawl = await self.get_urls_to_crawl()
