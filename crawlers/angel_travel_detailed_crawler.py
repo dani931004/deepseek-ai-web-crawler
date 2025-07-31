@@ -143,43 +143,40 @@ class AngelTravelDetailedCrawler(BaseCrawler):
         excluded_services = []
 
         # Extract program
-        program_h2 = soup.find('h2', string=re.compile(r'ПРОГРАМА', re.IGNORECASE))
-        if program_h2:
-            program_content = []
-            for sibling in program_h2.next_siblings:
-                if sibling.name == 'h2':
-                    break
-                if isinstance(sibling, str):
-                    program_content.append(sibling.strip())
-                elif sibling.name == 'p':
-                    program_content.append(sibling.get_text(strip=True))
-            program = '\n'.join(filter(None, program_content))
+        program_li = soup.find('li', string=re.compile(r'ПРОГРАМА', re.IGNORECASE))
+        print(f"DEBUG: program_li: {program_li}")
+        if program_li and 'aria-controls' in program_li.attrs:
+            program_id = program_li['aria-controls']
+            print(f"DEBUG: program_id: {program_id}")
+            program_div = soup.find('div', class_='resp-tab-content', id=program_id)
+            print(f"DEBUG: program_div: {program_div}")
+            if program_div:
+                program = program_div.get_text(separator='\n', strip=True)
+                print(f"DEBUG: Extracted program: {program}")
 
         # Extract included services
-        included_h2 = soup.find('h2', string=re.compile(r'ЦЕНАТА ВКЛЮЧВА', re.IGNORECASE))
-        if included_h2:
-            included_content = []
-            for sibling in included_h2.next_siblings:
-                if sibling.name == 'h2':
-                    break
-                if isinstance(sibling, str):
-                    included_content.append(sibling.strip())
-                elif sibling.name: # Check if it's a tag
-                    included_content.append(sibling.get_text(strip=True))
-            included_services = [item for item in '\n'.join(filter(None, included_content)).split('\n') if item.strip()]
+        included_li = soup.find('li', string=re.compile(r'ЦЕНАТА ВКЛЮЧВА', re.IGNORECASE))
+        print(f"DEBUG: included_li: {included_li}")
+        if included_li and 'aria-controls' in included_li.attrs:
+            included_id = included_li['aria-controls']
+            print(f"DEBUG: included_id: {included_id}")
+            included_div = soup.find('div', class_='resp-tab-content', id=included_id)
+            print(f"DEBUG: included_div: {included_div}")
+            if included_div:
+                included_services = [item.strip() for item in included_div.get_text(separator='\n', strip=True).split('\n') if item.strip()]
+                print(f"DEBUG: Extracted included_services: {included_services}")
 
         # Extract excluded services
-        excluded_h2 = soup.find('h2', string=re.compile(r'ЦЕНАТА НЕ ВКЛЮЧВА', re.IGNORECASE))
-        if excluded_h2:
-            excluded_content = []
-            for sibling in excluded_h2.next_siblings:
-                if sibling.name == 'h2':
-                    break
-                if isinstance(sibling, str):
-                    excluded_content.append(sibling.strip())
-                elif sibling.name: # Check if it's a tag
-                    excluded_content.append(sibling.get_text(strip=True))
-            excluded_services = [item for item in '\n'.join(filter(None, excluded_content)).split('\n') if item.strip()]
+        excluded_li = soup.find('li', string=re.compile(r'ЦЕНАТА НЕ ВКЛЮЧВА', re.IGNORECASE))
+        print(f"DEBUG: excluded_li: {excluded_li}")
+        if excluded_li and 'aria-controls' in excluded_li.attrs:
+            excluded_id = excluded_li['aria-controls']
+            print(f"DEBUG: excluded_id: {excluded_id}")
+            excluded_div = soup.find('div', class_='resp-tab-content', id=excluded_id)
+            print(f"DEBUG: excluded_div: {excluded_div}")
+            if excluded_div:
+                excluded_services = [item.strip() for item in excluded_div.get_text(separator='\n', strip=True).split('\n') if item.strip()]
+                print(f"DEBUG: Extracted excluded_services: {excluded_services}")
 
         if offer_name:
             detailed_offer = AngelTravelDetailedOffer(
