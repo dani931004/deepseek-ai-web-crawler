@@ -1,0 +1,494 @@
+<!DOCTYPE html><html><head>
+        <title>LABEL</title>
+        <meta charset="utf-8">
+                <meta name="robots" content="noindex,nofollow,noarchive,NOODP,NOYDIR">
+        
+        <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
+        <meta http-equiv="Pragma" content="no-cache">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <script type="text/javascript" src="jquery-1.12.4.min.js"></script>
+        <script src="bootstrap-3.3.6-dist/js/bootstrap.min.js" type="text/javascript"></script>
+        <link rel="stylesheet" type="text/css" href="bootstrap-3.3.6-dist/css/bootstrap.min.css">
+        <script src="js/equal-height-divs.js" type="text/javascript"></script>
+        <link rel="stylesheet" href="style.css?17" type="text/css">
+        <!--[if lt IE 9]>
+            <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+            <script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
+        <![endif]-->
+        <script type="text/javascript" src="js/iframeResizer.contentWindow.min.js" defer=""></script>
+        <script src="js/jQuery.lazyload-1.9.7.js" type="text/javascript"></script>
+
+        <script src="Easy-Responsive-Tabs-to-Accordion-master/js/easyResponsiveTabs.js"></script>
+        <link rel="stylesheet" href="Easy-Responsive-Tabs-to-Accordion-master/css/easy-responsive-tabs.css" type="text/css">
+
+        <script type="text/javascript">
+            var url2 = (window.location != window.parent.location) ? document.referrer : document.location.href;
+//            console.log(url2);
+
+            var arr = url2.split("/");
+            var domain_t = arr[2];
+            var domain2 = domain_t.replace("www.", "");
+
+                        $(document).ready(function (){
+                var allowed_domains = ["angeltravel.bg","angeltravel.bg,www.angeltravel.bg,dev1.angeltravel.bg"];
+                allowed_domains.push("iframe.peakview.bg", "peakview.bg");
+                console.log(domain2);
+                console.log(allowed_domains);
+    console.log($.inArray( domain2, allowed_domains));
+                if ($.inArray( domain2, allowed_domains ) == -1) {
+                    document.getElementById('CONTENT_PAGE').innerHTML = '<div class="alert alert-warning" role="alert">Вашият достъп не е активен!</div><meta name="robots" content="noindex,nofollow" />';
+                }
+            });
+            
+//            var topLocation = String(top.location);
+//            console.log(top.location);
+//            var topLocation2 = topLocation.toString();
+//            console.log(topLocation2);
+//            var arr = topLocation.split("/");
+//            console.log(arr);
+        </script>
+        <script>
+            $(window).load(function() {
+                // Animate loader off screen
+                $(".se-pre-con").fadeOut("slow");;
+            });
+        </script>
+                <style>
+            body {
+    font-family: Arial,Tahoma,Verdana,sans-serif;
+    font-size: 14px;
+    background: 0 0;
+    color: #222;
+    overflow-x: hidden;
+    overflow-y: auto
+}
+
+img {
+    max-width: 100%;
+    height: auto!important
+}
+
+h1,h2 {
+    margin: 0;
+    padding: 5px;
+    line-height: 100%;
+    font-size: inherit;
+    text-transform: uppercase;
+    font-weight: 600;
+    font-style: italic;
+}
+
+a {
+    color: #008ecb
+}
+
+a:hover {
+    color: #008ecb;
+    text-decoration: none
+}
+
+a:focus {
+    color: #008ecb;
+    outline: none;
+    text-decoration: none
+}
+
+.test {
+    background-color: #000
+}
+
+.otstap {
+    margin-bottom: 25px
+}
+
+.program_once .but,.program_once .but:hover,.reservation-btn:hover {
+    color: #fff
+}
+
+.but,.reservation-btn {
+    white-space: nowrap;
+    text-decoration: none;
+    font-weight: 400 !important;
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 100%;
+    text-align: center;
+    background: #ff0018;
+    color: #fff;
+    padding: 7px 17px 7px 17px;
+    border-radius: 30px;
+    display: block;
+    -webkit-transition: all .1s ease-out;
+    -moz-transition: all .1s ease-out;
+    outline: none;
+    font-family: arial;
+    color: #fff;
+}
+
+.but:hover,.reservation-btn:hover {
+    background: #dc3545;
+}
+
+.reservation-btn {
+    display: inline-block
+}
+
+.reservation-btn.small-btn {
+    display: inline-block
+	font-size: 14px;
+    padding: 6px 10px
+}
+
+.ofcontent {
+    padding-left: 0px;
+    text-align: center;
+}
+
+.program_once {
+    background: #fff;
+    border: 0px solid #e2e2e2;
+    padding: 10px 3px 3px 0px;
+    height: 100%;
+    box-shadow: 0px 2px 0px 0px #0dcaf0;
+    border-radius: 20px;
+}
+
+.program_once h2 {
+    margin: 0 0 15px
+}
+
+.program_once a {
+    color: #000000;
+    font-size: 18px;
+    font-weight: 600;
+    line-height: 110%;
+}
+
+.program_once a:hover {
+    color: #f05200
+}
+
+.ofimg {
+    position: relative;
+    background-position: center;
+    background-size: cover;
+    border-radius: 30px
+}
+
+.ofimg img {
+    opacity: 0;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: 0;
+    left: 0;
+    width: 100%;
+    height: 100%!important
+}
+
+.col-wrap {
+    display: flex;
+    width: 100%;
+    flex-direction: column;
+    flex-wrap: wrap
+}
+
+.date {
+    color: #757575
+}
+
+.price {
+    font-size: 18px;
+    color: #f46633
+}
+
+.price-big {
+    font-size: 24px;
+    color: #f46633
+}
+
+.left-col {
+    display: table-cell;
+    vertical-align: top;
+    width: 100%
+}
+
+.right-col {
+    display: table-cell;
+    vertical-align: top;
+    width: 100%;
+    position: relative;
+    padding-top: 30px;
+    padding-bottom: 50px
+}
+
+.but-wrap {
+    position: relative;
+    bottom: 0;
+    left: 0px;
+    padding: 30px 20px 0px 20px;
+}
+
+.antetka,.antetka-inner {
+    padding: 10px 0px 10px 5px;
+    font-size: 22px;
+    font-weight: 700;
+    text-transform: uppercase;
+    text-align: left;
+    line-height: 100%;
+    margin: 0 0 25px
+}
+
+h3 {
+    font-size: 22px;
+    margin-top: 20px;
+    margin-bottom: 10px;
+    background-color: #ff0018;
+    color: white;
+    padding: 7px;
+}
+
+.price-from span {
+    color: #008ecb;
+    font-size: 26px;
+    line-height: 30px;
+    margin-left: 4px
+}
+
+.star-accordion {
+    font-size: 16px;
+    margin-bottom: 50px
+}
+
+.star-accordion .resp-tab-item {
+    border-width: 2px 2px 0!important;
+    color: #fff
+}
+
+.star-accordion .resp-tab-active.resp-tab-item {
+    color: #222
+}
+
+.star-accordion .resp-tabs-list li {
+    padding: 13px 15px;
+    background: #4681f4!important;
+    font-size: 16px
+}
+
+.star-accordion .resp-tabs-list li.resp-tab-active {
+    background: #fff!important;
+    position: relative
+}
+@media (min-width: 1200px) {
+    .col-lg-6 {
+        width: 33%;
+    }
+}        </style>
+               
+    </head>
+    <body>
+                <div class="se-pre-con" style="position: fixed; left: 0px; top: 0px; width: 100%; height: 100%; z-index: 9999; background: url(&quot;img/loading-gear.gif&quot;) center top no-repeat rgb(255, 255, 255); opacity: 0.954618;"></div>
+        <div id="CONTENT_PAGE" class="container-fluid1">
+                        
+<script src="//code.jquery.com/ui/1.11.4/jquery-ui.js"></script>
+<link href="//code.jquery.com/ui/jquery-ui-git.css" rel="stylesheet" type="text/css">
+<div class="sort-block ">
+    <span>
+        <label for="amount">Цени:</label>
+        <input type="text" id="amount" style="border:0; color:#f6931f; font-weight:bold;">
+        <div id="slider-range" class="ui-slider ui-slider-horizontal ui-widget ui-widget-content ui-corner-all"><div class="ui-slider-range ui-widget-header ui-corner-all" style="left: 0%; width: 100%;"></div><span class="ui-slider-handle ui-state-default ui-corner-all" tabindex="0" style="left: 0%;"></span><span class="ui-slider-handle ui-state-default ui-corner-all" tabindex="0" style="left: 100%;"></span></div>
+    </span>
+    <span id="priceBnt"><span class="icon"></span>Сортирай по цена</span>
+    <span id="nightsBnt"><span class="icon"></span>Сортирай по нощувки</span>
+</div>
+<script>
+$(window).load(function(){
+
+    var $divs = $(".list_offers > div");
+
+    /*$('#alphBnt').on('click', function () {
+        var alphabeticallyOrderedDivs = $divs.sort(function (a, b) {
+            return $(a).find(".sort-title").text() > $(b).find(".sort-title").text();
+        });
+        $(".list_offers").html(alphabeticallyOrderedDivs);
+    });*/
+
+    $('#priceBnt').on('click', function () {
+        var numericallyOrderedDivs = $divs.sort(function (a, b) {
+            var a_val = parseFloat($(a).data("price"));
+            var b_val = parseFloat($(b).data("price"));
+            return a_val - b_val;
+        });
+        $(".list_offers").html(numericallyOrderedDivs);
+
+        $(".lazy").lazyload({
+            effect: "fadeIn",
+            threshold : 400
+        });
+    });
+    $('#nightsBnt').on('click', function () {
+        var numericallyOrderedDivs = $divs.sort(function (a, b) {
+            var a_val = parseFloat($(a).data("nights"));
+            var b_val = parseFloat($(b).data("nights"));
+
+            return a_val - b_val;
+        });
+        $(".list_offers").html(numericallyOrderedDivs);
+
+        $(".lazy").lazyload({
+            effect: "fadeIn",
+            threshold : 400
+        });
+    });
+    
+function showProducts(minPrice, maxPrice) {
+    $("div.once_offer").hide().filter(function() {
+        var price = parseInt($(this).data("price"), 10);
+        return price >= minPrice && price <= maxPrice;
+    }).show();
+    $(".lazy").lazyload({
+            effect: "fadeIn",
+            threshold : 400
+    });
+}
+
+$(function() {
+
+minprice=0;
+maxprice=0;
+sreda=0;
+$("div.once_offer").filter(function() {
+        var price = parseInt($(this).data("price"), 10);
+        if(price>maxprice){maxprice=price;}
+        if(minprice==0){minprice=price;}
+});
+sreda=parseInt(maxprice/2,10);
+ 
+
+
+    var options = {
+        range: true,
+        min: minprice,
+        max: maxprice,
+        values: [minprice, maxprice],
+        slide: function(event, ui) {
+            var min = ui.values[0],
+                max = ui.values[1];
+
+            $("#amount").val("" + min + " лв. - " + max + " лв.");
+            showProducts(min, max);
+        }
+    }, min, max;
+
+    $("#slider-range").slider(options);
+
+    min = $("#slider-range").slider("values", 0);
+    max = $("#slider-range").slider("values", 1);
+
+    $("#amount").val("" + min + " лв. - " + max+ " лв.");
+
+   // showProducts(min, max);
+});
+    
+    
+
+});
+</script>
+<div class="row list_offers flex">
+    
+        <div class="col-lg-6 col-md-6 col-sm-6 col-xs-12 col-xxs-12 once_offer otstap" data-price="939" data-nights="3">
+            <div class="program_once">
+                <h2><a title="Екскурзия в АРМЕНИЯ - уикенд в  ЕРЕВАН - със самолет, на български език!" href="programa.php?cl=198&amp;ifr_id=23311&amp;spo_id=6000004753&amp;type=eks&amp;toid=21">Екскурзия в АРМЕНИЯ - уикенд в  ЕРЕВАН - със самолет, на български език!</a></h2>
+                <div class="col-wrap">
+                    <div class="left-col"><a class="ofimg lazy" title="Екскурзия в АРМЕНИЯ - уикенд в  ЕРЕВАН - със самолет, на български език!" href="programa.php?cl=198&amp;ifr_id=23311&amp;spo_id=6000004753&amp;type=eks&amp;toid=21" data-original="//static.peakview.bg/img/data/21/programi/6000004753/EBIG_IMG.jpg" style="background-image: url(&quot;//static.peakview.bg/img/data/21/programi/6000004753/EBIG_IMG.jpg&quot;); display: block; opacity: 0.932357;"><img loading="lazy" data-original="//static.peakview.bg/img/data/21/programi/6000004753/EBIG_IMG.jpg" src="//static.peakview.bg/img/data/21/programi/6000004753/EBIG_IMG.jpg" class="lazy" alt="Екскурзия в АРМЕНИЯ - уикенд в  ЕРЕВАН - със самолет, на български език!" width="1200" height="800" style="display: block; opacity: 0;"></a></div>
+                    <div class="right-col">
+                        <div class="ofcontent"> (4 дни / 3 нощувки)<br>
+                            Дати: <font class="date">20.09.2025,27.09.20...</font><br><br>
+                            Цена от <font class="price">939 лв. / 480.10 EUR</font><br>
+                            <div class="but-wrap"><a href="programa.php?cl=198&amp;ifr_id=23311&amp;spo_id=6000004753&amp;type=eks&amp;toid=21" class="but">Виж повече</a></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6 col-md-6 col-sm-6 col-xs-12 col-xxs-12 once_offer otstap" data-price="999" data-nights="4">
+            <div class="program_once">
+                <h2><a title="Екскурзия в АРМЕНИЯ - природа, култура и древни традиции - със самолет, на български език!" href="programa.php?cl=198&amp;ifr_id=23311&amp;spo_id=6000005214&amp;type=eks&amp;toid=21">Екскурзия в АРМЕНИЯ - природа, култура и древни традиции - със самолет, на български език!</a></h2>
+                <div class="col-wrap">
+                    <div class="left-col"><a class="ofimg lazy" title="Екскурзия в АРМЕНИЯ - природа, култура и древни традиции - със самолет, на български език!" href="programa.php?cl=198&amp;ifr_id=23311&amp;spo_id=6000005214&amp;type=eks&amp;toid=21" data-original="//static.peakview.bg/img/data/21/programi/6000005214/EBIG_IMG.jpg" style="background-image: url(&quot;//static.peakview.bg/img/data/21/programi/6000005214/EBIG_IMG.jpg&quot;); display: block; opacity: 0.124944;"><img loading="lazy" data-original="//static.peakview.bg/img/data/21/programi/6000005214/EBIG_IMG.jpg" src="//static.peakview.bg/img/data/21/programi/6000005214/EBIG_IMG.jpg" class="lazy" alt="Екскурзия в АРМЕНИЯ - природа, култура и древни традиции - със самолет, на български език!" style="display: block; opacity: 0;"></a></div>
+                    <div class="right-col">
+                        <div class="ofcontent"> (5 дни / 4 нощувки)<br>
+                            Дати: <font class="date">16.09.2025,07.10.20...</font><br><br>
+                            Цена от <font class="price">999 лв. / 510.78 EUR</font><br>
+                            <div class="but-wrap"><a href="programa.php?cl=198&amp;ifr_id=23311&amp;spo_id=6000005214&amp;type=eks&amp;toid=21" class="but">Виж повече</a></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6 col-md-6 col-sm-6 col-xs-12 col-xxs-12 once_offer otstap" data-price="1003" data-nights="4">
+            <div class="program_once">
+                <h2><a title="РОЗОВОТО БИЖУ НА АРМЕНИЯ - ЕРЕВАН - 4 нощувки" href="programa.php?cl=198&amp;ifr_id=23311&amp;spo_id=2655&amp;type=poc&amp;toid=109">РОЗОВОТО БИЖУ НА АРМЕНИЯ - ЕРЕВАН - 4 нощувки</a></h2>
+                <div class="col-wrap">
+                    <div class="left-col"><a class="ofimg lazy" title="РОЗОВОТО БИЖУ НА АРМЕНИЯ - ЕРЕВАН - 4 нощувки" href="programa.php?cl=198&amp;ifr_id=23311&amp;spo_id=2655&amp;type=poc&amp;toid=109" data-original="//static.peakview.bg/img/data/109/programi/2655/BIG_IMG.jpg" style="background-image: url(&quot;//static.peakview.bg/img/data/109/programi/2655/BIG_IMG.jpg&quot;); display: block; opacity: 0.360504;"><img loading="lazy" data-original="//static.peakview.bg/img/data/109/programi/2655/BIG_IMG.jpg" src="//static.peakview.bg/img/data/109/programi/2655/BIG_IMG.jpg" class="lazy" alt="РОЗОВОТО БИЖУ НА АРМЕНИЯ - ЕРЕВАН - 4 нощувки" width="1280" height="720" style="display: block; opacity: 0;"></a></div>
+                    <div class="right-col">
+                        <div class="ofcontent"> (5 дни / 4 нощувки)<br>
+                            Дати: <font class="date">07.10.2025, 14.10.2...</font><br><br>
+                            Цена от <font class="price">1003 лв. / 512.83 EUR</font><br>
+                            <div class="but-wrap"><a href="programa.php?cl=198&amp;ifr_id=23311&amp;spo_id=2655&amp;type=poc&amp;toid=109" class="but">Виж повече</a></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6 col-md-6 col-sm-6 col-xs-12 col-xxs-12 once_offer otstap" data-price="1499" data-nights="4">
+            <div class="program_once">
+                <h2><a title="Екскурзия в АРМЕНИЯ - ЕРЕВАН, история, кухня и култура - със самолет, на български език!" href="programa.php?cl=198&amp;ifr_id=23311&amp;spo_id=6000004577&amp;type=eks&amp;toid=21">Екскурзия в АРМЕНИЯ - ЕРЕВАН, история, кухня и култура - със самолет, на български език!</a></h2>
+                <div class="col-wrap">
+                    <div class="left-col"><a class="ofimg lazy" title="Екскурзия в АРМЕНИЯ - ЕРЕВАН, история, кухня и култура - със самолет, на български език!" href="programa.php?cl=198&amp;ifr_id=23311&amp;spo_id=6000004577&amp;type=eks&amp;toid=21" data-original="//static.peakview.bg/img/data/21/programi/6000004577/EBIG_IMG.jpg" style="background-image: url(&quot;//static.peakview.bg/img/data/21/programi/6000004577/EBIG_IMG.jpg&quot;); display: block; opacity: 0.184324;"><img loading="lazy" data-original="//static.peakview.bg/img/data/21/programi/6000004577/EBIG_IMG.jpg" src="//static.peakview.bg/img/data/21/programi/6000004577/EBIG_IMG.jpg" class="lazy" alt="Екскурзия в АРМЕНИЯ - ЕРЕВАН, история, кухня и култура - със самолет, на български език!" width="1200" height="800" style="display: block; opacity: 0;"></a></div>
+                    <div class="right-col">
+                        <div class="ofcontent"> (5 дни / 4 нощувки)<br>
+                            Дати: <font class="date">16.09.2025,07.10.20...</font><br><br>
+                            Цена от <font class="price">1499 лв. / 766.43 EUR</font><br>
+                            <div class="but-wrap"><a href="programa.php?cl=198&amp;ifr_id=23311&amp;spo_id=6000004577&amp;type=eks&amp;toid=21" class="but">Виж повече</a></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6 col-md-6 col-sm-6 col-xs-12 col-xxs-12 once_offer otstap" data-price="1499" data-nights="3">
+            <div class="program_once">
+                <h2><a title="Екскурзия в АРМЕНИЯ - ЕРЕВАН, розовият град - със самолет, на български език!" href="programa.php?cl=198&amp;ifr_id=23311&amp;spo_id=6000004578&amp;type=eks&amp;toid=21">Екскурзия в АРМЕНИЯ - ЕРЕВАН, розовият град - със самолет, на български език!</a></h2>
+                <div class="col-wrap">
+                    <div class="left-col"><a class="ofimg lazy" title="Екскурзия в АРМЕНИЯ - ЕРЕВАН, розовият град - със самолет, на български език!" href="programa.php?cl=198&amp;ifr_id=23311&amp;spo_id=6000004578&amp;type=eks&amp;toid=21" data-original="//static.peakview.bg/img/data/21/programi/6000004578/EBIG_IMG.jpg" style="background-image: url(&quot;//static.peakview.bg/img/data/21/programi/6000004578/EBIG_IMG.jpg&quot;); display: block; opacity: 0.360504;"><img loading="lazy" data-original="//static.peakview.bg/img/data/21/programi/6000004578/EBIG_IMG.jpg" src="//static.peakview.bg/img/data/21/programi/6000004578/EBIG_IMG.jpg" class="lazy" alt="Екскурзия в АРМЕНИЯ - ЕРЕВАН, розовият град - със самолет, на български език!" width="1200" height="800" style="display: block; opacity: 0;"></a></div>
+                    <div class="right-col">
+                        <div class="ofcontent"> (4 дни / 3 нощувки)<br>
+                            Дати: <font class="date">20.09.2025,04.10.20...</font><br><br>
+                            Цена от <font class="price">1499 лв. / 766.43 EUR</font><br>
+                            <div class="but-wrap"><a href="programa.php?cl=198&amp;ifr_id=23311&amp;spo_id=6000004578&amp;type=eks&amp;toid=21" class="but">Виж повече</a></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+</div>        </div>
+        <div id="created" style="display:block!important;">
+        Powered by <a href="http://www.peakview.bg/" title="Туристическа B2B платформа за обмен на оферти" target="_blank"><img src="img/pv_bial_small.png" alt="Peakview.bg - B2B Туристически портал " style="display:inline!important;"></a>&nbsp;&nbsp;&nbsp;<!-- Изработка: УебДизайн <a href="http://www.webdesignbg.eu/" target="_blank"><img src="/img/wd_bialfon.png" alt="webdesign" /></a>-->
+        </div>
+
+        <script>
+            /*$(window).on("load resize", function (e) {
+                equalheight('.once_offer');
+            });
+            */
+            $(document).ready(function () {
+                //$(".scrollbar-wrap").tinyscrollbar();
+            });
+            $(".lazy").lazyload({
+                effect: "fadeIn",
+                threshold : 400
+            });
+        </script>
+    
+
+</body></html>

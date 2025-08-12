@@ -1,38 +1,52 @@
 #!/usr/bin/env /home/dani/Desktop/Crawl4AI/deepseek-crawler/venv/bin/python3
 import asyncio
+from datetime import datetime
 
 from dotenv import load_dotenv
 
 from crawlers.dari_tour_crawlers import DariTourCrawler, DariTourDetailedCrawler
 from crawlers.hotel_details_crawler import HotelDetailsCrawler
 from crawlers.angel_travel_crawlers import AngelTravelCrawler
+from crawlers.angel_travel_detailed_crawler import AngelTravelDetailedCrawler
+from config import angel_travel_config, dari_tour_config
+from models.angel_travel_detailed_models import AngelTravelDetailedOffer
+from models.angel_travel_models import AngelTravelOffer
+from models.dari_tour_models import DariTourOffer
+from models.dari_tour_detailed_models import OfferDetails
 
 
 load_dotenv()
 
 async def main():
     """
-    Entry point of the script.
+    Main asynchronous function to orchestrate the crawling process.
+    This function initializes and runs various crawlers to collect data from different sources.
+    The use of `async` and `await` allows for efficient handling of I/O-bound operations,
+    such as network requests during crawling, without blocking the main thread.
     """
-    # Crawl Dari Tour Offers
-    # dari_tour_crawler = DariTourCrawler()
-    # await dari_tour_crawler.crawl(max_items=20)
-    # await asyncio.sleep(1) # Add a small delay to ensure file is written
+    session_id = datetime.now().strftime("%Y%m%d%H%M%S")
 
-    # # Crawl Dari Tour Detailed Offers
-    # dari_tour_detailed_crawler = DariTourDetailedCrawler()
-    # await dari_tour_detailed_crawler.crawl()
-    # await asyncio.sleep(1) # Add a small delay to ensure file is written
+    # First, run the Angel Travel Crawler to populate the complete_offers.csv
+    angel_travel_crawler = AngelTravelCrawler(session_id=session_id, config=angel_travel_config, model_class=AngelTravelOffer)
+    await angel_travel_crawler.crawl() # Process all offers
+    await asyncio.sleep(1) # Give the file system a moment to catch up
 
-    # # Crawl Hotel Details
-    # hotel_details_crawler = HotelDetailsCrawler()
-    # await hotel_details_crawler.crawl()
+    # Then, run the Angel Travel Detailed Crawler
+    angel_travel_detailed_crawler = AngelTravelDetailedCrawler(session_id=session_id, config=angel_travel_config, model_class=AngelTravelDetailedOffer)
+    await angel_travel_detailed_crawler.crawl() # Process all offers
 
-    # Crawl Angel Travel Offers
-    angel_travel_crawler = AngelTravelCrawler()
-    await angel_travel_crawler.crawl()
-    await asyncio.sleep(1) # Add a small delay to ensure file is written
+    # Then, run the Dari Tour Crawler
+    dari_tour_crawler = DariTourCrawler(session_id=session_id, config=dari_tour_config, model_class=DariTourOffer)
+    await dari_tour_crawler.crawl() # Process all offers
+    await asyncio.sleep(1) # Give the file system a moment to catch up
+
+    # Then, run the Dari Tour Detailed Crawler
+    dari_tour_detailed_crawler = DariTourDetailedCrawler(session_id=session_id, config=dari_tour_config, model_class=OfferDetails)
+    await dari_tour_detailed_crawler.crawl() # Process all offers
 
 
 if __name__ == "__main__":
+    # Entry point for the script execution.
+    # `asyncio.run()` is used to run the main asynchronous function.
+    # This ensures that the asynchronous operations within `main()` are properly managed.
     asyncio.run(main())

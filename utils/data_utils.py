@@ -3,18 +3,44 @@ import json
 import os
 import re
 
-def sanitize_filename(filename: str) -> str:
-    """Sanitizes a string to be safe for use as a filename.
-    Replaces invalid characters with underscores.
+def slugify(text: str) -> str:
     """
-    # Replace any character that is not a letter, number, hyphen, underscore, or dot with an underscore
-    sanitized = re.sub(r'[^\w\-.]', '_', filename)
-    # Remove leading/trailing underscores or hyphens
-    sanitized = sanitized.strip('_-')
-    return sanitized
+    Converts a given string into a URL-friendly slug.
+    Handles Cyrillic characters, replaces non-alphanumeric characters with hyphens,
+    and cleans up multiple/leading/trailing hyphens.
+    """
+    # Convert the input text to lowercase to ensure consistency.
+    text = text.lower()
+    # Define a mapping for Cyrillic characters to their Latin equivalents.
+    cyrillic_to_latin = {
+        'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ж': 'zh', 'з': 'z',
+        'и': 'i', 'й': 'y', 'к': 'k', 'л': 'l', 'м': 'm', 'н': 'n', 'о': 'o', 'п': 'p',
+        'р': 'r', 'с': 's', 'т': 't', 'у': 'u', 'ф': 'f', 'х': 'h', 'ц': 'ts', 'ч': 'ch',
+        'ш': 'sh', 'щ': 'sht', 'ъ': 'a', 'ь': 'y', 'ю': 'yu', 'я': 'ya'
+    }
+    # Replace Cyrillic characters based on the defined mapping.
+    for cyr, lat in cyrillic_to_latin.items():
+        text = text.replace(cyr, lat)
 
+    # Replace any non-alphanumeric characters (excluding hyphens) with a single hyphen.
+    text = re.sub(r'[\s/\\_.,;:\'"()[\]{}|!@#$%^&*+=?<>~`]+|-', '-', text)
+    # Remove any leading or trailing hyphens that might have resulted from the replacement.
+    text = text.strip('-')
+    # Replace multiple consecutive hyphens with a single hyphen to clean up the slug.
+    text = re.sub(r'-+', '-', text)
+    return text
 
-
+def sanitize_filename(filename: str) -> str:
+    """
+    Sanitizes a string to be used as a safe filename.
+    Removes invalid characters and limits length.
+    """
+    # Remove invalid characters
+    sanitized = re.sub(r'[<>:"/\\|?*\x00-\x1f]', '', filename)
+    # Replace spaces with underscores
+    sanitized = sanitized.replace(' ', '_')
+    # Limit filename length to 200 characters to avoid OS limitations
+    return sanitized[:200]
 
 def save_offers_to_csv(offers: list, filename: str, model: type):
     if not offers:

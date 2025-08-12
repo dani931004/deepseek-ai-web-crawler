@@ -19,8 +19,15 @@ class AngelTravelOffer(BaseModel):
     price: str = Field(..., description="The price of the tour (include currency if available)")
     transport_type: str = Field(..., description="Type of transport (e.g., 'Bus', 'Airplane', 'Train')")
     link: str = Field(..., description="Full URL to the tour offer page")
+    main_page_link: str = Field(..., description="URL of the main page containing the iframe for the detailed offer")
     
     class Config:
+        """
+        Pydantic configuration class for AngelTravelOffer.
+
+        This inner class provides configurations for the Pydantic model,
+        such as adding an example JSON schema for documentation purposes.
+        """
         json_schema_extra = {
             "example": {
                 "title": "Exotic Bali Escape",
