@@ -308,6 +308,8 @@ async def main_cli(args):
             # Execute the selected crawler.
             selected_crawler = crawlers_menu[choice]["instance"]
             config_kwargs = {}
+            if args.max_items:
+                config_kwargs["max_items"] = args.max_items
 
             print(f"\nSelected: {crawlers_menu[choice]['name']}")
             

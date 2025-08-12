@@ -3,7 +3,7 @@ LLM strategy configuration for the web crawler.
 """
 import os
 from typing import Type, Any
-from crawl4ai import LLMExtractionStrategy
+from crawl4ai import LLMExtractionStrategy, LLMConfig
 
 def get_llm_strategy(model: Type[Any]) -> LLMExtractionStrategy:
     """
@@ -60,7 +60,7 @@ def get_llm_strategy(model: Type[Any]) -> LLMExtractionStrategy:
     
     # Create the LLM extraction strategy with optimized settings
     return LLMExtractionStrategy(
-        provider="groq/llama3-8b-8192",
+        llm_config=LLMConfig(provider="groq/llama3-8b-8192"),
         model=model,
         api_key=os.getenv("GROQ_API_KEY"),
         schema=schema,

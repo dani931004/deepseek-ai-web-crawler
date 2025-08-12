@@ -101,7 +101,7 @@ class HotelDetailsCrawler(BaseCrawler):
             return hotels_to_process[:max_items]
         return hotels_to_process
 
-    async def process_item(self, item: Any) -> Optional[Dict[str, Any]]:
+    async def process_item(self, item: Any, seen_items: set) -> Optional[Dict[str, Any]]:
         """
         Processes a single hotel item by crawling its link and extracting relevant details.
 

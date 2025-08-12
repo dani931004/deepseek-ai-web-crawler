@@ -1,4 +1,3 @@
-#!/usr/bin/env /home/dani/Desktop/Crawl4AI/deepseek-crawler/venv/bin/python3
 import asyncio
 from datetime import datetime
 
@@ -50,3 +49,4 @@ if __name__ == "__main__":
     # `asyncio.run()` is used to run the main asynchronous function.
     # This ensures that the asynchronous operations within `main()` are properly managed.
     asyncio.run(main())
+

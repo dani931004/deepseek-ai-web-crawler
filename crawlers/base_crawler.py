@@ -10,7 +10,7 @@ from abc import ABC, abstractmethod
 
 from crawl4ai import AsyncWebCrawler, CrawlerRunConfig, CacheMode, BrowserConfig
 from config import get_browser_config
-from utils.data_utils import save_offers_to_csv, save_to_json
+from utils.data_utils import save_offers_to_csv, save_to_json, slugify
 from utils.scraper_utils.llm_strategy import get_llm_strategy
 import pandas as pd
 
@@ -130,7 +130,7 @@ class BaseCrawler(ABC):
     def _load_existing_data_json(self, dirpath: str):
         """
         Loads existing data from JSON files within a directory into `seen_items`.
-        Assumes each JSON file represents a unique item, identified by its slugified filename.
+        It reads the 'offer_name' from each JSON file and slugifies it to add to `seen_items`.
 
         Args:
             dirpath (str): The path to the directory containing JSON files.
@@ -139,10 +139,17 @@ class BaseCrawler(ABC):
         if os.path.exists(dirpath):
             for filename in os.listdir(dirpath):
                 if filename.endswith(".json"):
-                    # Extract the slugified name from the filename (e.g., 'offer-name.json' -> 'offer-name').
-                    slugified_name = filename.replace(".json", "").lower().replace(" ", "-").replace("/", "-")
-                    if slugified_name: # Only add if the slug is not empty.
-                        self.seen_items.add(slugified_name)
+                    filepath = os.path.join(dirpath, filename)
+                    try:
+                        with open(filepath, 'r', encoding='utf-8') as f:
+                            data = json.load(f)
+                            if 'offer_name' in data:
+                                offer_name_slug = slugify(data['offer_name'])
+                                self.seen_items.add(offer_name_slug)
+                    except json.JSONDecodeError as e:
+                        print(f"Error decoding JSON from {filepath}: {e}")
+                    except Exception as e:
+                        print(f"Error loading {filepath}: {e}")
             print(f"Loaded {len(self.seen_items)} existing items from {dirpath}")
 
     @abstractmethod
@@ -157,7 +164,7 @@ class BaseCrawler(ABC):
         pass
 
     @abstractmethod
-    async def process_item(self, item: Any) -> Optional[Dict[str, Any]]:
+    async def process_item(self, item: Any, seen_items: set) -> Optional[Dict[str, Any]]:
         """
         Abstract method to be implemented by subclasses. This method defines how
         a single item (e.g., a URL) is processed and its data extracted.
@@ -203,18 +210,36 @@ class BaseCrawler(ABC):
 
     def _save_data_csv(self, filepath: str, model_class: Type):
         """
-        Saves collected data to a CSV file.
+        Saves collected data to a CSV file, merging with existing data and removing duplicates.
 
         Args:
             filepath (str): The path where the CSV file will be saved.
             model_class (Type): The Pydantic model class used for data validation and serialization.
         """
-        if self.all_items:
-            # Use a utility function to save the list of items to a CSV file.
-            save_offers_to_csv(self.all_items, filepath, model_class)
-            print(f"Saved {len(self.all_items)} total offers to '{filepath}'.")
+        if not self.all_items:
+            print("No new offers to save in this crawl.")
+            return
+
+        new_df = pd.DataFrame(self.all_items)
+        
+        if os.path.exists(filepath):
+            existing_df = pd.read_csv(filepath, dtype={k: str for k in self.key_fields})
+            combined_df = pd.concat([existing_df, new_df]).drop_duplicates(subset=self.key_fields).reset_index(drop=True)
         else:
-            print("No offers were found during the entire crawl.")
+            combined_df = new_df
+
+        # Ensure all columns from the model are present, filling missing with None or empty string
+        # This is important if new_df doesn't have all columns from the model
+        fieldnames = list(model_class.model_fields.keys())
+        for col in fieldnames:
+            if col not in combined_df.columns:
+                combined_df[col] = None # Or '' depending on desired default
+
+        # Reorder columns to match model_class field order
+        combined_df = combined_df[fieldnames]
+
+        combined_df.to_csv(filepath, index=False, encoding="utf-8")
+        print(f"Saved {len(combined_df)} unique offers to '{filepath}'.")
 
     def _save_data_json(self, data: Dict[str, Any], filepath: str):
         """
@@ -233,7 +258,7 @@ class BaseCrawler(ABC):
         Assumes the item has a 'name' key that can be slugified.
         """
         if "name" in item and self.output_file_type == 'json':
-            slugified_name = item["name"].lower().replace(" ", "-").replace("/", "-")
+            slugified_name = slugify(item["name"])
             return os.path.join(self.config.DETAILS_DIR, f"{slugified_name}.json")
         return None
 
@@ -262,7 +287,7 @@ class BaseCrawler(ABC):
         else:
             print(f"Unknown output file type: {self.output_file_type}. Data not saved.")
 
-    async def crawl(self):
+    async def crawl(self, max_items: Optional[int] = None):
         """
         Orchestrates the crawling process. This method initializes the crawler,
         loads existing data, fetches URLs to crawl, processes each item, and saves the results.
@@ -280,17 +305,17 @@ class BaseCrawler(ABC):
         
         try:
             # Retrieve the list of URLs or items that need to be crawled.
-            urls_to_crawl = await self.get_urls_to_crawl(max_items=self.config.max_offers_to_crawl)
+            urls_to_crawl = await self.get_urls_to_crawl(max_items=max_items)
             
             # Iterate through each item to be crawled.
             for i, item in enumerate(urls_to_crawl):
                 # Check if the maximum item limit has been reached.
-                if self.config.max_offers_to_crawl and len(self.all_items) >= self.config.max_offers_to_crawl:
-                    print(f"Reached max_offers_to_crawl limit of {self.config.max_offers_to_crawl}. Stopping.")
+                if max_items is not None and len(self.all_items) >= max_items:
+                    print(f"Reached max_items limit of {max_items}. Stopping.")
                     break
                 
                 # Process the current item.
-                processed_item = await self.process_item(item)
+                processed_item = await self.process_item(item, self.seen_items)
                 if processed_item:
                     self.all_items.append(processed_item) # Add successfully processed item to the list.
 

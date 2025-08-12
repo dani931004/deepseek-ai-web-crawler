@@ -2,6 +2,7 @@
 Main crawling functionality for the web crawler.
 """
 import asyncio
+import time
 from typing import List, Set, Tuple, Any, Optional
 from crawl4ai import AsyncWebCrawler, CrawlerRunConfig, CacheMode, BrowserConfig
 from .content_processor import process_page_content
@@ -83,6 +84,7 @@ async def fetch_and_process_page(
                 return [], True  # No more results, signal to stop crawling
 
             # Use the crawler's arun method with the CSS selector
+            start_time = time.time()
             result = await crawler.arun(
                 url=url,
                 config=CrawlerRunConfig(
@@ -91,6 +93,12 @@ async def fetch_and_process_page(
                     css_selector=css_selector
                 ),
             )
+            end_time = time.time()
+            fetch_duration = end_time - start_time
+
+            if fetch_duration < 0.5:
+                print(f"Skipping page {page_number} due to unusually fast fetch time ({fetch_duration:.2f} seconds).")
+                return [], False # Skip this record and continue crawling
             
             if not result.success:
                 error_msg = result.error_message or "Unknown error"

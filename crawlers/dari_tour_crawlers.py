@@ -13,6 +13,7 @@ from bs4 import BeautifulSoup
 from config import CSS_SELECTOR_DARI_TOUR_DETAIL_OFFER_NAME, CSS_SELECTOR_DARI_TOUR_DETAIL_HOTEL_ELEMENTS, CSS_SELECTOR_DARI_TOUR_DETAIL_HOTEL_NAME, CSS_SELECTOR_DARI_TOUR_DETAIL_HOTEL_PRICE, CSS_SELECTOR_DARI_TOUR_DETAIL_HOTEL_COUNTRY, CSS_SELECTOR_DARI_TOUR_DETAIL_PROGRAM, CSS_SELECTOR_DARI_TOUR_DETAIL_INCLUDED_SERVICES, CSS_SELECTOR_DARI_TOUR_DETAIL_EXCLUDED_SERVICES, CSS_SELECTOR_DARI_TOUR_DETAIL_HOTEL_ITEM_LINK, CSS_SELECTOR_OFFER_ITEM_TITLE
 from utils.data_utils import (
     save_offers_to_csv,
+    slugify
 )
 from utils.scraper_utils import (
     fetch_and_process_page,
@@ -100,12 +101,36 @@ class DariTourCrawler(BaseCrawler):
             print(f"No offer items found on {url}")
             return []
             
-        print(f"Found {len(offer_elements)} offer items to process...")
-        if max_items:
-            return offer_elements[:max_items]
-        return offer_elements
+        filtered_offer_elements = []
+        for offer_element in offer_elements:
+            actual_url = None
+            offer_name = ""
+            if offer_element.name == 'a' and 'href' in offer_element.attrs:
+                href = offer_element['href']
+                if href.startswith('http'):
+                    actual_url = href
+                else:
+                    actual_url = urllib.parse.urljoin(self.config.base_url, href)
+                actual_url = actual_url.split('?')[0].split('#')[0]
+                
+                name_el = offer_element.select_one(CSS_SELECTOR_OFFER_ITEM_TITLE)
+                if name_el:
+                    offer_name = name_el.get_text(strip=True)
 
-    async def process_item(self, item: Any) -> Optional[Dict[str, Any]]:
+            normalized_offer_name = offer_name.lower().strip()
+            normalized_actual_url = actual_url.lower().strip() if actual_url else ""
+
+            if (normalized_offer_name, normalized_actual_url) not in self.seen_items:
+                filtered_offer_elements.append(offer_element)
+            else:
+                print(f"Skipping {offer_name} ({actual_url}) from initial crawl list as it has already been processed.")
+
+        print(f"Found {len(filtered_offer_elements)} new offer items to process.")
+        if max_items:
+            return filtered_offer_elements[:max_items]
+        return filtered_offer_elements
+
+    async def process_item(self, item: Any, seen_items: set) -> Optional[Dict[str, Any]]:
         """
         Processes a single offer item extracted from the initial page.
         This involves extracting the offer name and link, and then using an LLM strategy
@@ -295,7 +320,7 @@ class DariTourDetailedCrawler(BaseCrawler):
         for index, row in offers_df.iterrows():
             offer_name = row['name']
             # Generate a slug from the offer name for consistent file naming and duplicate checking.
-            offer_slug = offer_name.lower().replace(' ', '-')
+            offer_slug = slugify(offer_name)
             # Check if this offer has already been processed.
             if offer_slug not in self.seen_items:
                 offers_to_process.append(row)
@@ -307,9 +332,11 @@ class DariTourDetailedCrawler(BaseCrawler):
             print("All detailed offers have already been processed.")
             return []
 
+        if max_items:
+            return offers_to_process[:max_items]
         return offers_to_process
 
-    async def process_item(self, item: Any) -> Optional[Dict[str, Any]]:
+    async def process_item(self, item: Any, seen_items: set) -> Optional[Dict[str, Any]]:
         """
         Processes a single detailed offer item by crawling its page and extracting information.
 
@@ -322,7 +349,7 @@ class DariTourDetailedCrawler(BaseCrawler):
         offer_url = item['link']
         offer_name = item['name']
         # Generate a slug for the offer name to use in the output filename.
-        offer_slug = offer_name.lower().replace(' ', '-')
+        offer_slug = slugify(offer_name)
         output_path = self._get_detailed_item_filepath({"name": offer_name})
 
         # Check if skipping is enabled and the file already exists
