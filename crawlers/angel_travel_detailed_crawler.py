@@ -185,10 +185,10 @@ class AngelTravelDetailedCrawler(BaseCrawler):
             iframe_config = CrawlerRunConfig(
                 url=iframe_src,
                 verbose=True,
-                wait_until="networkidle"
+                wait_until="load"
             )
             iframe_result = await self.crawler.arun(iframe_src, config=iframe_config)
-            await asyncio.sleep(3)
+            await asyncio.sleep(10) # Increased sleep time
 
             if not iframe_result or not iframe_result.html:
                 logging.error(f"Failed to get HTML from first iframe src (list of offers): {iframe_src}")
@@ -197,16 +197,25 @@ class AngelTravelDetailedCrawler(BaseCrawler):
             program_page_html = iframe_result.html # This is the HTML of the list of offers
             program_page_soup = BeautifulSoup(program_page_html, 'html.parser')
 
-            # Step 4: Find the link to the detailed programa.php within the list of offers
-            # The link is within a div with class 'but-wrap' and has class 'but'
-            # Find the specific offer's main link using its title (offer_name)
-            offer_main_link_tag = program_page_soup.find('a', title=offer_name)
-            if not offer_main_link_tag:
-                logging.warning(f"Could not find main link for offer '{offer_name}' within {iframe_src}")
+            # Normalize offer_name by removing trailing non-breaking spaces and stripping whitespace
+            normalized_offer_name = offer_name.replace('&nbsp;', '').strip()
+
+            # Find the div.program_once that contains the offer name
+            offer_div = None
+            for div in program_page_soup.find_all('div', class_='program_once'):
+                h2_a_tag = div.find('h2', recursive=False) # Look only in direct children of div.program_once
+                if h2_a_tag:
+                    a_tag = h2_a_tag.find('a', recursive=False)
+                    if a_tag and a_tag.get('title') and a_tag.get('title').replace('&nbsp;', '').strip() == normalized_offer_name:
+                        offer_div = div
+                        break
+
+            if not offer_div:
+                logging.warning(f"Could not find offer div for '{offer_name}' within {iframe_src}")
                 return main_page_html, program_page_html, None, None
 
-            # Find the 'a' tag with class 'but' that has the same href as the offer_main_link_tag
-            detailed_offer_link_tag = program_page_soup.find('a', class_='but', href=offer_main_link_tag.get('href'))
+            # Find the 'a' tag with class 'but' within the found offer_div
+            detailed_offer_link_tag = offer_div.find('a', class_='but')
             
             if not detailed_offer_link_tag or not detailed_offer_link_tag.get('href'):
                 logging.warning(f"Could not find detailed offer link within {iframe_src}")
@@ -225,10 +234,10 @@ class AngelTravelDetailedCrawler(BaseCrawler):
             detailed_program_config = CrawlerRunConfig(
                 url=detailed_programa_php_url,
                 verbose=True,
-                wait_until="networkidle"
+                wait_until="load"
             )
             detailed_program_result = await self.crawler.arun(detailed_programa_php_url, config=detailed_program_config)
-            await asyncio.sleep(3) # Add a delay for the detailed program page as well
+            await asyncio.sleep(10) # Increased delay for the detailed program page as well
 
             if detailed_program_result and detailed_program_result.html:
                 detailed_program_page_html = detailed_program_result.html
