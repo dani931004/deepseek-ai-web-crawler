@@ -7,7 +7,7 @@ import logging
 from datetime import datetime
 from typing import List, Dict, Any, Optional, Type
 from crawl4ai import AsyncWebCrawler, CrawlerRunConfig, CacheMode, BrowserConfig
-from config import dari_tour_config, get_browser_config
+from config import dari_tour_config, get_browser_config, PAGE_TIMEOUT
 
 from bs4 import BeautifulSoup
 from config import CSS_SELECTOR_DARI_TOUR_DETAIL_OFFER_NAME, CSS_SELECTOR_DARI_TOUR_DETAIL_HOTEL_ELEMENTS, CSS_SELECTOR_DARI_TOUR_DETAIL_HOTEL_NAME, CSS_SELECTOR_DARI_TOUR_DETAIL_HOTEL_PRICE, CSS_SELECTOR_DARI_TOUR_DETAIL_HOTEL_COUNTRY, CSS_SELECTOR_DARI_TOUR_DETAIL_PROGRAM, CSS_SELECTOR_DARI_TOUR_DETAIL_INCLUDED_SERVICES, CSS_SELECTOR_DARI_TOUR_DETAIL_EXCLUDED_SERVICES, CSS_SELECTOR_DARI_TOUR_DETAIL_HOTEL_ITEM_LINK, CSS_SELECTOR_OFFER_ITEM_TITLE
@@ -126,7 +126,7 @@ class DariTourCrawler(BaseCrawler):
             else:
                 logging.info(f"Skipping {offer_name} ({actual_url}) from initial crawl list as it has already been processed.")
 
-        logging.info(f"Found {len(filtered_offer_elements)} new offer items to process.")
+        logging.info(f"Found {len(filtered_offer_elements)} new offers to process for Dari Tour.")
         if max_items:
             return filtered_offer_elements[:max_items]
         return filtered_offer_elements
@@ -229,27 +229,26 @@ class DariTourCrawler(BaseCrawler):
                     if isinstance(extracted_content, list):
                         for offer in extracted_content:
                             logging.debug(f"DEBUG: Processing offer in list: {offer}")
-                            logging.debug(f"DEBUG: Is duplicate? {self.is_duplicate(offer)}")
-                            logging.debug(f"DEBUG: Is complete? {self.is_complete(offer)}")
-                            # Check for duplicates and completeness before adding to all_items.
-                            if not self.is_duplicate(offer) and self.is_complete(offer):
+                            logging.debug(f"DEBUG: Is complete? {self.is_complete(offer)}") # is_duplicate check will be handled by _append_item_to_csv
+                            # Check for completeness before adding to all_items.
+                            if self.is_complete(offer):
                                 offer['link'] = actual_url
-                                self.seen_items.add(tuple(offer.get(k, '').lower().strip() for k in self.key_fields))
+                                self._append_item_to_csv(offer)
                                 logging.info(f"Successfully extracted and added new offer: {offer['name']}")
-                                return offer
+                                return offer # Return after processing the first valid offer in the list
                             else:
-                                logging.info(f"Skipping duplicate or incomplete offer: {offer.get('name', 'N/A')}")
+                                logging.info(f"Skipping incomplete offer: {offer.get('name', 'N/A')}")
                     elif isinstance(extracted_content, dict):
                         logging.debug(f"DEBUG: Processing offer as dict: {extracted_content}")
                         logging.debug(f"DEBUG: Is duplicate? {self.is_duplicate(extracted_content)}")
                         logging.debug(f"DEBUG: Is complete? {self.is_complete(extracted_content)}")
-                        if not self.is_duplicate(extracted_content) and self.is_complete(extracted_content):
+                        if self.is_complete(extracted_content): # is_duplicate check will be handled by _append_item_to_csv
                             extracted_content['link'] = actual_url
-                            self.seen_items.add(tuple(extracted_content.get(k, '').lower().strip() for k in self.key_fields))
+                            
+                            self._append_item_to_csv(extracted_content)
                             logging.info(f"Successfully extracted and added new offer: {extracted_content['name']}")
-                            return extracted_content
                         else:
-                            logging.info(f"Skipping duplicate or incomplete offer: {extracted_content.get('name', 'N/A')}")
+                            logging.info(f"Skipping incomplete offer: {extracted_content.get('name', 'N/A')}")
 
             finally:
                 # Ensure the temporary file is deleted after processing.
@@ -367,6 +366,7 @@ class DariTourDetailedCrawler(BaseCrawler):
         config = CrawlerRunConfig(
             url=offer_url,
             cache_mode=self.cache_mode,
+            page_timeout=PAGE_TIMEOUT,
         )
 
         # Execute the crawl operation.
@@ -378,6 +378,7 @@ class DariTourDetailedCrawler(BaseCrawler):
             detailed_offer_data = await self._parse_detailed_offer(result.html)
             # Check if data was extracted and is complete before returning.
             if detailed_offer_data and self.is_complete(detailed_offer_data):
+                self._save_data_json(detailed_offer_data.model_dump(), output_path)
                 return {"data": detailed_offer_data.model_dump(), "path": output_path}
             else:
                 logging.error(f"No detailed data extracted or incomplete for {offer_url}")
@@ -426,6 +427,8 @@ class DariTourDetailedCrawler(BaseCrawler):
             # If essential hotel data is present, create a Hotel object and add it to the list.
             if hotel_name and hotel_price and hotel_country:
                 hotels_data.append(Hotel(name=hotel_name, price=hotel_price, country=hotel_country, link=hotel_link))
+
+        logging.info(f"Extracted {len(hotels_data)} hotels for offer: {offer_name})")
 
         # Extract program details.
         program_element = soup.select_one(CSS_SELECTOR_DARI_TOUR_DETAIL_PROGRAM)

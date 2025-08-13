@@ -8,7 +8,7 @@ from datetime import datetime
 
 from typing import List, Dict, Any, Optional, Type, Tuple
 from crawl4ai import AsyncWebCrawler, CrawlerRunConfig, CacheMode, BrowserConfig
-from config import angel_travel_config, get_browser_config
+from config import angel_travel_config, get_browser_config, PAGE_TIMEOUT
 
 from bs4 import BeautifulSoup
 from config import CSS_SELECTOR_OFFER_ITEM_TITLE
@@ -68,6 +68,7 @@ class AngelTravelCrawler(BaseCrawler):
             session_id=f"{self.session_id}_main_page",
             extraction_strategy=None,
             verbose=True,
+            page_timeout=PAGE_TIMEOUT,
         )
         result = await self._run_crawler_with_retries(url, config=config, description="fetching destination links")
         if not result or not result.html:
@@ -100,7 +101,10 @@ class AngelTravelCrawler(BaseCrawler):
 
             logging.info(f"Found {len(offer_elements)} offer elements on {dest_name}")
 
+            total_offers_on_page = len(offer_elements) # Get total offers on this page
+
             for i, offer_element in enumerate(offer_elements, 1):
+                logging.info(f"Processing offer {i}/{total_offers_on_page} for destination: {dest_name})")
                 if self.config.max_offers_to_crawl and len(self.all_items) >= self.config.max_offers_to_crawl:
                     logging.info(f"Reached max_items limit of {max_items}. Stopping processing offer elements.")
                     break
@@ -128,12 +132,11 @@ class AngelTravelCrawler(BaseCrawler):
                         'main_page_link': dest_url
                     }
 
-                    if not self.is_duplicate(offer_data) and self.is_complete(offer_data):
-                        self.all_items.append(offer_data)
-                        self.seen_items.add(tuple(offer_data.get(k, '').lower().strip() for k in self.key_fields))
+                    if self.is_complete(offer_data): # is_duplicate check will be handled by _append_item_to_csv
+                        self._append_item_to_csv(offer_data, self.filepath, self.model_class, self.key_fields)
                         logging.info(f"Successfully extracted and added new offer: {offer_data['title']}")
                     else:
-                        logging.info(f"Skipping duplicate or incomplete offer: {offer_data.get('title', 'N/A')}")
+                        logging.info(f"Skipping incomplete offer: {offer_data.get('title', 'N/A')}")
 
                 except Exception as e:
                     logging.error(f"Error processing offer element {i} on {dest_url}: {e}")
@@ -150,6 +153,7 @@ class AngelTravelCrawler(BaseCrawler):
             session_id=f"{self.session_id}_{slugify(dest_url)}",
             extraction_strategy=None,
             verbose=True,
+            page_timeout=PAGE_TIMEOUT,
         )
         result = await self._run_crawler_with_retries(dest_url, config=config, description=f"fetching destination page {dest_url}")
         if not result or not result.html:
@@ -173,6 +177,7 @@ class AngelTravelCrawler(BaseCrawler):
             session_id=f"{self.session_id}_{slugify(iframe_src)}",
             extraction_strategy=None,
             verbose=True,
+            page_timeout=PAGE_TIMEOUT,
         )
         iframe_result = await self._run_crawler_with_retries(iframe_src, config=iframe_config, description=f"fetching iframe content from {iframe_src}")
         if not iframe_result or not iframe_result.html:

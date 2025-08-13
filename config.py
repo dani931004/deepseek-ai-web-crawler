@@ -3,6 +3,8 @@ from pathlib import Path
 from crawl4ai import BrowserConfig
 from typing import Optional
 
+PAGE_TIMEOUT = 120000
+
 # Delay constants for crawling
 MIN_DELAY_SECONDS = 10
 MAX_DELAY_SECONDS = 30

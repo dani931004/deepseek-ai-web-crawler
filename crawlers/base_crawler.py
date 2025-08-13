@@ -29,7 +29,7 @@ class BaseCrawler(ABC):
         config: Type,
         model_class: Type,
         cache_mode: CacheMode = CacheMode.BYPASS,
-        max_retries: int = 7,
+        max_retries: int = 3,
         required_keys: Optional[List[str]] = None,
         key_fields: Optional[List[str]] = None,
         output_file_type: OutputType = OutputType.CSV,
@@ -325,6 +325,36 @@ class BaseCrawler(ABC):
         save_to_json(data, filepath)
         logging.info(f"Saved detailed offer to {filepath}")
 
+    def _append_item_to_csv(self, item_data: Dict[str, Any], filepath: str, model_class: Type, key_fields: List[str]):
+        """
+        Appends a single item to a CSV file, handling headers and duplicate checking.
+        """
+        new_df = pd.DataFrame([item_data])
+        
+        if not os.path.exists(filepath):
+            # If file doesn't exist, write with headers
+            new_df.to_csv(filepath, index=False, encoding="utf-8")
+            logging.info(f"Created new CSV file and added first item: '{filepath}'.")
+        else:
+            # Read existing data to check for duplicates
+            existing_df = pd.read_csv(filepath, dtype={k: str for k in key_fields})
+            
+            # Check if the new item is a duplicate
+            is_duplicate = False
+            for _, row in existing_df.iterrows():
+                normalized_existing_keys = tuple(str(row[k]).lower().strip() for k in key_fields)
+                normalized_new_keys = tuple(item_data.get(k, '').lower().strip() for k in key_fields)
+                if normalized_existing_keys == normalized_new_keys:
+                    is_duplicate = True
+                    break
+            
+            if not is_duplicate:
+                # Append without header if not a duplicate
+                new_df.to_csv(filepath, mode='a', header=False, index=False, encoding="utf-8")
+                logging.info(f"Appended new item to '{filepath}'.")
+            else:
+                logging.info(f"Skipping duplicate item for CSV: {item_data.get('name', item_data.get('title', 'N/A'))}")
+
     def _get_detailed_item_filepath(self, item: Dict[str, Any]) -> Optional[str]:
         """
         Generates the expected file path for a detailed item based on its name.
@@ -392,7 +422,15 @@ class BaseCrawler(ABC):
             urls_to_crawl = await self.get_urls_to_crawl(max_items=max_items)
             
             # Iterate through each item to be crawled.
+            total_items = len(urls_to_crawl)
             for i, item in enumerate(urls_to_crawl):
+                if isinstance(item, dict):
+                    item_display_name = item.get('name', item.get('title', str(item)))
+                elif isinstance(item, tuple) and len(item) > 1:
+                    item_display_name = item[1] # Assuming the second element of the tuple is the name
+                else:
+                    item_display_name = str(item)
+                logging.info(f"\033[1;36mProcessing item {i + 1}/{total_items}: {item_display_name}\033[0m")
                 # Check if the maximum item limit has been reached.
                 if max_items is not None and len(self.all_items) >= max_items:
                     logging.info(f"Reached max_items limit of {max_items}. Stopping.")
@@ -407,7 +445,7 @@ class BaseCrawler(ABC):
                 # This assumes 'item' has a 'url' key or is the URL string itself.
                 # If 'item' is a dictionary, we'll try to get the 'url' from it.
                 # Otherwise, we'll assume 'item' itself is the URL.
-                item_url = item.get('url') if isinstance(item, dict) and 'url' in item else str(item)
+                item_url = item.get('link') if isinstance(item, dict) and 'link' in item else str(item)
                 if item_url in self.processed_urls_cache:
                     logging.info(f"Skipping already processed URL: {item_url}")
                     continue
@@ -433,7 +471,8 @@ class BaseCrawler(ABC):
                 # Process the current item.
                 processed_item = await self.process_item(item, self.seen_items)
                 if processed_item:
-                    self.all_items.append(processed_item) # Add successfully processed item to the list.
+                    if self.output_file_type == OutputType.JSON:
+                        self.all_items.append(processed_item) # Add successfully processed item to the list.
                     # No need to call _add_processed_url here anymore, it's done above.
                     # However, if the offer_name is more accurate after processing,
                     # we might want to update the processed_urls.csv entry.
@@ -467,6 +506,5 @@ class BaseCrawler(ABC):
                 # or when the event loop is closing.
                 logging.warning(f"Error during crawler cleanup (expected during shutdown): {type(e).__name__}: {e}")
             
-            self.save_data() # Save all collected data.
             if self.llm_strategy:
                 self.llm_strategy.show_usage() # Display LLM usage if an LLM strategy is present.

@@ -74,7 +74,6 @@ async def main():
     # First, run the Angel Travel Crawler to populate the complete_offers.csv
     angel_travel_crawler = AngelTravelCrawler(session_id=session_id, config=angel_travel_config, model_class=AngelTravelOffer, output_file_type=OutputType.CSV)
     await angel_travel_crawler.crawl() # Process all offers
-    await asyncio.sleep(1) # Give the file system a moment to catch up
 
     # Then, run the Angel Travel Detailed Crawler
     angel_travel_detailed_crawler = AngelTravelDetailedCrawler(session_id=session_id, config=angel_travel_config, model_class=AngelTravelDetailedOffer, output_file_type=OutputType.JSON)
@@ -83,7 +82,6 @@ async def main():
     # Then, run the Dari Tour Crawler
     dari_tour_crawler = DariTourCrawler(session_id=session_id, config=dari_tour_config, model_class=DariTourOffer, output_file_type=OutputType.CSV)
     await dari_tour_crawler.crawl() # Process all offers
-    await asyncio.sleep(1) # Give the file system a moment to catch up
 
     # Then, run the Dari Tour Detailed Crawler
     dari_tour_detailed_crawler = DariTourDetailedCrawler(session_id=session_id, config=dari_tour_config, model_class=OfferDetails, output_file_type=OutputType.JSON)

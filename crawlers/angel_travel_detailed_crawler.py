@@ -135,8 +135,9 @@ class AngelTravelDetailedCrawler(BaseCrawler):
             with open(f"/home/dani/Desktop/Crawl4AI/data/debug/debug_tabs_page_html_{offer_slug}.html", "w", encoding="utf-8") as f:
                 f.write(tabs_page_html)
 
-        detailed_offer_data = await self._parse_detailed_offer_content(main_page_html, program_page_html, tabs_page_html, offer_name, main_page_url)
+        detailed_offer_data = await self._parse_detailed_offer_content(main_page_html, program_page_html, tabs_page_html, offer_name, programa_php_url)
         if detailed_offer_data:
+            self._save_data_json(detailed_offer_data.model_dump(), output_path)
             return {"data": detailed_offer_data.model_dump(), "path": output_path}
         else:
             logging.error(f"No detailed data extracted or incomplete for {main_page_url}")
@@ -326,15 +327,7 @@ class AngelTravelDetailedCrawler(BaseCrawler):
             return detailed_offer
         return None
 
-    def save_data(self):
-        """
-        Saves the collected detailed offer data to JSON files.
-        Iterates through all processed items and calls the internal save method.
-        """
-        # Loop through each item that has been processed and is ready to be saved.
-        for item in self.all_items:
-            # Call the helper method to save the data to a JSON file at the specified path.
-            self._save_data_json(item["data"], item["path"])
+    
 
 async def crawl_angel_travel_detailed_offers():
     """
