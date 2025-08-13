@@ -8,6 +8,7 @@ import logging
 from typing import List, Dict, Any, Optional, Type
 from abc import ABC, abstractmethod
 import signal
+import csv
 
 from crawl4ai import AsyncWebCrawler, CrawlerRunConfig, CacheMode, BrowserConfig
 from config import get_browser_config, MIN_DELAY_SECONDS, MAX_DELAY_SECONDS
@@ -77,6 +78,10 @@ class BaseCrawler(ABC):
         self.seen_items = set()  # Stores identifiers of already processed items to avoid duplicates.
         self.all_items = []  # Accumulates all successfully processed items.
         self.stop_event = asyncio.Event() # Event to signal graceful shutdown.
+
+        # New: Processed URLs management
+        self.processed_urls_filepath = os.path.join(self.output_dir, "processed_urls.csv")
+        self.processed_urls_cache = set() # Stores URLs that have been processed
 
     def _signal_handler(self, signum, frame):
         logging.info("Ctrl+C detected. Initiating forceful shutdown...")
@@ -167,6 +172,37 @@ class BaseCrawler(ABC):
                     except Exception as e:
                         logging.error(f"Error loading {filepath}: {e}")
             logging.info(f"Loaded {len(self.seen_items)} existing items from {dirpath}")
+
+    def _load_processed_urls_cache(self):
+        """
+        Loads URLs from the processed_urls.csv file into processed_urls_cache.
+        """
+        if os.path.exists(self.processed_urls_filepath):
+            try:
+                processed_df = pd.read_csv(self.processed_urls_filepath)
+                if 'url' in processed_df.columns:
+                    self.processed_urls_cache.update(processed_df['url'].astype(str).tolist())
+                logging.info(f"Loaded {len(self.processed_urls_cache)} processed URLs from {self.processed_urls_filepath}")
+            except Exception as e:
+                logging.error(f"Error loading processed URLs from {self.processed_urls_filepath}: {e}")
+        else:
+            # Create the file with headers if it doesn't exist
+            pd.DataFrame(columns=['url', 'offer_name']).to_csv(self.processed_urls_filepath, index=False)
+            logging.info(f"Created new processed URLs file: {self.processed_urls_filepath}")
+
+    def _add_processed_url(self, url: str, offer_name: str):
+        """
+        Adds a URL and its associated offer name to the processed_urls.csv file and cache.
+        """
+        if url not in self.processed_urls_cache:
+            try:
+                with open(self.processed_urls_filepath, 'a', newline='', encoding='utf-8') as f:
+                    writer = csv.writer(f)
+                    writer.writerow([url, offer_name])
+                self.processed_urls_cache.add(url)
+                logging.debug(f"Added processed URL: {url} ({offer_name})")
+            except Exception as e:
+                logging.error(f"Error adding processed URL {url} to file: {e}")
 
     @abstractmethod
     async def get_urls_to_crawl(self, max_items: Optional[int] = None) -> List[Any]:
@@ -277,7 +313,7 @@ class BaseCrawler(ABC):
         Generates the expected file path for a detailed item based on its name.
         Assumes the item has a 'name' key that can be slugified.
         """
-        if "name" in item and self.output_file_type == 'json':
+        if "name" in item and self.output_file_type == OutputType.JSON:
             slugified_name = slugify(item["name"])
             return os.path.join(self.config.DETAILS_DIR, f"{slugified_name}.json")
         return None
@@ -331,6 +367,9 @@ class BaseCrawler(ABC):
         elif self.output_file_type == OutputType.JSON:
             self._load_existing_data_json(self.output_dir)
         
+        # Load the processed URLs cache
+        self._load_processed_urls_cache()
+
         try:
             # Retrieve the list of URLs or items that need to be crawled.
             urls_to_crawl = await self.get_urls_to_crawl(max_items=max_items)
@@ -347,10 +386,42 @@ class BaseCrawler(ABC):
                     logging.info("Graceful shutdown initiated. Stopping crawling.")
                     break
 
+                # --- NEW: Check if URL is already in processed_urls_cache ---
+                # This assumes 'item' has a 'url' key or is the URL string itself.
+                # If 'item' is a dictionary, we'll try to get the 'url' from it.
+                # Otherwise, we'll assume 'item' itself is the URL.
+                item_url = item.get('url') if isinstance(item, dict) and 'url' in item else str(item)
+                if item_url in self.processed_urls_cache:
+                    logging.info(f"Skipping already processed URL: {item_url}")
+                    continue
+                # --- END NEW ---
+
+                # --- NEW: Check if item is already seen before processing (existing check) ---
+                # If item is a dictionary and contains key_fields, use it directly
+                if isinstance(item, dict) and all(k in item for k in self.key_fields):
+                    if self.is_duplicate(item):
+                        logging.info(f"Skipping already seen item (from main data file): {item.get('name', item)}")
+                        continue # Skip to the next item in urls_to_crawl
+                # --- END NEW ---
+
+                # --- NEW: Add URL to processed_urls.csv immediately before processing ---
+                # We need the actual URL that will be processed and a placeholder offer name.
+                # The offer name will be updated later if processing is successful.
+                # For now, we'll use a temporary offer name or 'N/A'.
+                # This ensures the URL is marked as processed even if process_item fails.
+                temp_offer_name = item.get('name', 'N/A') if isinstance(item, dict) else 'N/A'
+                self._add_processed_url(item_url, temp_offer_name)
+                # --- END NEW ---
+
                 # Process the current item.
                 processed_item = await self.process_item(item, self.seen_items)
                 if processed_item:
                     self.all_items.append(processed_item) # Add successfully processed item to the list.
+                    # No need to call _add_processed_url here anymore, it's done above.
+                    # However, if the offer_name is more accurate after processing,
+                    # we might want to update the processed_urls.csv entry.
+                    # For simplicity and to avoid re-writing the file, we'll stick
+                    # with adding it once before processing.
 
                 # Introduce a random delay between requests to avoid overwhelming the server.
                 if i < len(urls_to_crawl) - 1:
