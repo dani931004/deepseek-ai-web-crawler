@@ -4,8 +4,8 @@ from crawl4ai import BrowserConfig
 from typing import Optional
 
 # Delay constants for crawling
-MIN_DELAY_SECONDS = 5
-MAX_DELAY_SECONDS = 15
+MIN_DELAY_SECONDS = 10
+MAX_DELAY_SECONDS = 30
 
 class CrawlerConfig:
     """

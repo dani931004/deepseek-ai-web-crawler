@@ -2,6 +2,7 @@ import csv
 import json
 import os
 import re
+import logging
 
 def slugify(text: str) -> str:
     """
@@ -60,10 +61,12 @@ def save_offers_to_csv(offers: list, filename: str, model: type):
         writer = csv.DictWriter(file, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(cleaned_offers)
+    logging.info(f"Saving {len(cleaned_offers)} offers to '{filename}'.")
     print(f"Saved {len(cleaned_offers)} offers to '{filename}'.")
     return cleaned_offers
 
 def save_to_json(data, filename: str):
     os.makedirs(os.path.dirname(filename), exist_ok=True)
+    logging.info(f"Saving data to '{filename}'.")
     with open(filename, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=4)

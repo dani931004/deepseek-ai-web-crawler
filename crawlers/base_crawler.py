@@ -29,7 +29,7 @@ class BaseCrawler(ABC):
         config: Type,
         model_class: Type,
         cache_mode: CacheMode = CacheMode.BYPASS,
-        max_retries: int = 3,
+        max_retries: int = 7,
         required_keys: Optional[List[str]] = None,
         key_fields: Optional[List[str]] = None,
         output_file_type: OutputType = OutputType.CSV,
@@ -83,6 +83,22 @@ class BaseCrawler(ABC):
         self.processed_urls_filepath = os.path.join(self.output_dir, "processed_urls.csv")
         self.processed_urls_cache = set() # Stores URLs that have been processed
 
+    async def _reinitialize_crawler(self):
+        """
+        Closes the current crawler instance and initializes a new one.
+        """
+        logging.info("Reinitializing AsyncWebCrawler due to persistent failure.")
+        try:
+            await self.crawler.__aexit__(None, None, None) # Close existing browser
+        except Exception as e:
+            logging.warning(f"Error during old crawler cleanup: {e}")
+        self.crawler = AsyncWebCrawler(config=self.browser_config) # Create new instance
+        try:
+            await self.crawler.__aenter__() # Enter new browser context
+        except Exception as e:
+            logging.error(f"Failed to initialize new crawler: {e}")
+            raise # Re-raise to propagate the error
+
     def _signal_handler(self, signum, frame):
         logging.info("Ctrl+C detected. Initiating forceful shutdown...")
         self.stop_event.set()
@@ -126,6 +142,7 @@ class BaseCrawler(ABC):
                     logging.warning(f"Retrying in {retry_delay:.2f} seconds...")
                     await asyncio.sleep(retry_delay)
                 else:
+                    await self._reinitialize_crawler() # Reinitialize crawler on persistent failure
                     raise
         return None
 
