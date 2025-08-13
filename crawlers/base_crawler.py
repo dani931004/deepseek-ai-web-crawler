@@ -82,6 +82,7 @@ class BaseCrawler(ABC):
         # New: Processed URLs management
         self.processed_urls_filepath = os.path.join(self.output_dir, "processed_urls.csv")
         self.processed_urls_cache = set() # Stores URLs that have been processed
+        logging.debug(f"Processed URLs file path: {self.processed_urls_filepath}")
 
     async def _reinitialize_crawler(self):
         """
@@ -446,9 +447,29 @@ class BaseCrawler(ABC):
                 # If 'item' is a dictionary, we'll try to get the 'url' from it.
                 # Otherwise, we'll assume 'item' itself is the URL.
                 item_url = item.get('link') if isinstance(item, dict) and 'link' in item else str(item)
+                
+                # Determine the display name for logging
+                log_display_name = item_url if item_url else item_display_name
+
                 if item_url in self.processed_urls_cache:
-                    logging.info(f"Skipping already processed URL: {item_url}")
-                    continue
+                    if self.output_file_type == OutputType.JSON:
+                        # For JSON output, check if the detailed file actually exists
+                        # This requires the item to be a dictionary with a 'title' or 'name'
+                        if isinstance(item, dict) and ('title' in item or 'name' in item):
+                            temp_item_for_path = {'name': item.get('title', item.get('name'))}
+                            expected_json_path = self._get_detailed_item_filepath(temp_item_for_path)
+                            if expected_json_path and os.path.exists(expected_json_path):
+                                logging.info(f"Skipping already processed URL (and JSON exists): {log_display_name}")
+                                continue
+                            else:
+                                logging.info(f"URL in cache but JSON file missing, reprocessing: {log_display_name}")
+                                # Do not continue, proceed with processing
+                        else:
+                            logging.info(f"Skipping already processed URL (cannot verify JSON existence): {log_display_name}")
+                            continue
+                    else: # For CSV or other types, just skip if in cache
+                        logging.info(f"Skipping already processed URL: {log_display_name}")
+                        continue
                 # --- END NEW ---
 
                 # --- NEW: Check if item is already seen before processing (existing check) ---
@@ -459,25 +480,15 @@ class BaseCrawler(ABC):
                         continue # Skip to the next item in urls_to_crawl
                 # --- END NEW ---
 
-                # --- NEW: Add URL to processed_urls.csv immediately before processing ---
-                # We need the actual URL that will be processed and a placeholder offer name.
-                # The offer name will be updated later if processing is successful.
-                # For now, we'll use a temporary offer name or 'N/A'.
-                # This ensures the URL is marked as processed even if process_item fails.
-                temp_offer_name = item.get('name', 'N/A') if isinstance(item, dict) else 'N/A'
-                self._add_processed_url(item_url, temp_offer_name)
-                # --- END NEW ---
-
                 # Process the current item.
                 processed_item = await self.process_item(item, self.seen_items)
                 if processed_item:
                     if self.output_file_type == OutputType.JSON:
                         self.all_items.append(processed_item) # Add successfully processed item to the list.
-                    # No need to call _add_processed_url here anymore, it's done above.
-                    # However, if the offer_name is more accurate after processing,
-                    # we might want to update the processed_urls.csv entry.
-                    # For simplicity and to avoid re-writing the file, we'll stick
-                    # with adding it once before processing.
+                    # Add URL to processed_urls.csv after successful processing
+                    # Use the actual offer name from the processed item if available
+                    final_offer_name = processed_item.get('name', processed_item.get('title', 'N/A'))
+                    self._add_processed_url(item_url, final_offer_name)
 
                 # Introduce a random delay between requests to avoid overwhelming the server.
                 if i < len(urls_to_crawl) - 1:

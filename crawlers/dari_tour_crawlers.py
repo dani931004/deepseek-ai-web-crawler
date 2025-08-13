@@ -432,7 +432,7 @@ class DariTourDetailedCrawler(BaseCrawler):
 
         # Extract program details.
         program_element = soup.select_one(CSS_SELECTOR_DARI_TOUR_DETAIL_PROGRAM)
-        program = program_element.get_text(strip=True) if program_element else ""
+        program = str(program_element) if program_element else ""
 
         included_services = []
         # Extract included services by iterating through list items.

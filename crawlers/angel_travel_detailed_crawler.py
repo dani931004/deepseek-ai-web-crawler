@@ -115,7 +115,10 @@ class AngelTravelDetailedCrawler(BaseCrawler):
         logging.info(f"Main Page URL: {main_page_url}")
         logging.info(f"Programa.php URL: {programa_php_url}")
 
-        main_page_html, program_page_html, tabs_page_html = await self._get_main_and_program_html(main_page_url, programa_php_url)
+        main_page_html, program_page_html, tabs_page_html, actual_programa_php_url = await self._get_main_and_program_html(main_page_url, programa_php_url)
+
+        # Update programa_php_url with the actual URL found
+        programa_php_url = actual_programa_php_url if actual_programa_php_url else programa_php_url
 
         if not main_page_html or not program_page_html:
             logging.error(f"Failed to get required HTML content for {offer_name}")
@@ -144,7 +147,7 @@ class AngelTravelDetailedCrawler(BaseCrawler):
         
         return None
 
-    async def _get_main_and_program_html(self, main_page_url: str, programa_php_url: str) -> Optional[Tuple[str, str, str]]:
+    async def _get_main_and_program_html(self, main_page_url: str, initial_programa_php_url: str) -> Optional[Tuple[str, str, str, str]]:
         """
         Navigates to the main page, extracts the iframe src, and then crawls the iframe src to get the program HTML.
         Returns a tuple of (main_page_html, program_page_html, detailed_program_page_html).
@@ -160,7 +163,7 @@ class AngelTravelDetailedCrawler(BaseCrawler):
 
             if not main_page_result or not main_page_result.html:
                 logging.error(f"Failed to get main page HTML for {main_page_url}")
-                return None, None, None
+                return None, None, None, None
 
             main_page_html = main_page_result.html
             main_page_soup = BeautifulSoup(main_page_html, 'html.parser')
@@ -169,7 +172,7 @@ class AngelTravelDetailedCrawler(BaseCrawler):
             iframe_tag = main_page_soup.find('iframe', src=re.compile(r'iframe\.peakview\.bg'))
             if not iframe_tag or not iframe_tag.get('src'):
                 logging.error(f"Could not find first iframe with peakview.bg src on {main_page_url}")
-                return None, None, None
+                return None, None, None, None
 
             iframe_src = iframe_tag['src']
             # Ensure the iframe_src is a complete URL
@@ -189,7 +192,7 @@ class AngelTravelDetailedCrawler(BaseCrawler):
 
             if not iframe_result or not iframe_result.html:
                 logging.error(f"Failed to get HTML from first iframe src (list of offers): {iframe_src}")
-                return None, None, None
+                return None, None, None, None
 
             program_page_html = iframe_result.html # This is the HTML of the list of offers
             program_page_soup = BeautifulSoup(program_page_html, 'html.parser')
@@ -199,7 +202,7 @@ class AngelTravelDetailedCrawler(BaseCrawler):
             detailed_offer_link_tag = program_page_soup.find('a', class_='but')
             if not detailed_offer_link_tag or not detailed_offer_link_tag.get('href'):
                 logging.warning(f"Could not find detailed offer link within {iframe_src}")
-                return main_page_html, program_page_html, None
+                return main_page_html, program_page_html, None, None
 
             detailed_programa_php_url = detailed_offer_link_tag['href']
             # Ensure the detailed_programa_php_url is a complete URL
@@ -221,14 +224,14 @@ class AngelTravelDetailedCrawler(BaseCrawler):
 
             if detailed_program_result and detailed_program_result.html:
                 detailed_program_page_html = detailed_program_result.html
-                return main_page_html, program_page_html, detailed_program_page_html
+                return main_page_html, program_page_html, detailed_program_page_html, detailed_programa_php_url
             else:
                 logging.error(f"Failed to get detailed program page HTML from {detailed_programa_php_url}")
-                return main_page_html, program_page_html, None
+                return main_page_html, program_page_html, None, None
 
         except Exception as e:
             logging.error(f"Error in _get_main_and_program_html: {e}")
-            return None, None, None
+            return None, None, None, None
 
     async def _parse_detailed_offer_content(self, main_page_html: str, program_page_html: str, tabs_page_html: str, offer_name: str, detailed_offer_link: Optional[str]) -> Optional[AngelTravelDetailedOffer]:
         """
@@ -252,26 +255,11 @@ class AngelTravelDetailedCrawler(BaseCrawler):
         excluded_services = []
 
         # Attempt to extract the program details using a predefined CSS selector.
-        program_element = program_page_soup.find('div', class_='ofcontent')
-        program_text_parts = []
+        # The detailed program content is expected to be in tabs_page_html.
+        program_element = tabs_page_soup.select_one(CSS_SELECTOR_ANGEL_TRAVEL_DETAIL_PROGRAM)
         if program_element:
-            for content in program_element.contents:
-                if isinstance(content, str):  # It\\'s a text node
-                    stripped_text = content.strip()
-                    if stripped_text:
-                        program_text_parts.append(stripped_text)
-                elif content.name == 'font': # Handle font tags like dates and prices
-                    stripped_text = content.get_text(strip=True)
-                    if stripped_text:
-                        program_text_parts.append(stripped_text)
-                elif content.name == 'br': # Add newline for <br> tags
-                    program_text_parts.append(os.linesep)
-                elif content.name == 'div' and 'but-wrap' in content.get('class', []):
-                    # Skip the button wrap div
-                    continue
-            program = " ".join(program_text_parts).strip()
-            # Replace multiple newlines with a single one for cleaner output
-            program = re.sub(r'\\n+', '\\n', program)
+            program = program_element.get_text(separator=os.linesep, strip=True)
+            program = re.sub(r'(\s*'+re.escape(os.linesep)+')+', os.linesep, program).strip()
 
         # Find the main tab container
         parent_horizontal_tab = tabs_page_soup.find('div', id='parentHorizontalTab')

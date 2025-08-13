@@ -131,7 +131,7 @@ CSS_SELECTOR_DARI_TOUR_DETAIL_EXCLUDED_SERVICES = "div.resp-tab-content[aria-lab
 
 # Specific overrides/refinements for Angel Travel Detailed offers due to unique page structure.
 CSS_SELECTOR_ANGEL_TRAVEL_DETAIL_OFFER_NAME = "div.program_once h2 a"  # More specific selector for the offer name.
-CSS_SELECTOR_ANGEL_TRAVEL_DETAIL_PROGRAM = "div.ofcontent"  # More specific selector for the program content.
+CSS_SELECTOR_ANGEL_TRAVEL_DETAIL_PROGRAM = "div.resp-tab-content[aria-labelledby='hor_1_tab_item-0']"  # More specific selector for the program content.
 CSS_SELECTOR_ANGEL_TRAVEL_DETAIL_INCLUDED_SERVICES = "div.antetka div.antetka-inner ul li"  # More specific selector for included services.
 CSS_SELECTOR_ANGEL_TRAVEL_DETAIL_EXCLUDED_SERVICES = "div.antetka div.antetka-inner ul li"  # More specific selector for excluded services.
 CSS_SELECTOR_ANGEL_TRAVEL_DETAIL_HOTEL_ELEMENTS = "div.once_offer"  # More specific selector for hotel elements.
