@@ -42,7 +42,8 @@ def get_llm_strategy(model: Type[Any]) -> LLMExtractionStrategy:
         "- If no items are found, return an empty array\n"
         "- The offer name is found in the `h1` tag with class `antetka-2`.\n"
         "- Hotels are listed under the 'Хотели' tab, which is a `div` with `aria-labelledby='hor_1_tab_item-0'`. Each hotel item is a `div` with class `col-hotel`. Inside each `col-hotel`, the hotel name is in `div.title`, the price is in `div.price`, and the country/nights information is in `div.info div.country`.\n"
-        "- The program details are under the 'Програма' tab, which is a `div` with `aria-labelledby='hor_1_tab_item-1'`.\n"
+        "- The program details are under the tab with the text 'ПРОГРАМА'."
+
         "- Included services are listed as `li` elements under the 'Цената включва' tab, which is a `div` with `aria-labelledby='hor_1_tab_item-2'`.\n"
         "- Excluded services are listed as `li` elements under the 'Цената не включва' tab, which is a `div` with `aria-labelledby='hor_1_tab_item-3'`."
     )

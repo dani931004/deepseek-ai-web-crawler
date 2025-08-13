@@ -262,42 +262,43 @@ class AngelTravelDetailedCrawler(BaseCrawler):
         included_services = []
         excluded_services = []
 
-        # Attempt to extract the program details using a predefined CSS selector.
-        # The detailed program content is expected to be in tabs_page_html.
-        program_element = tabs_page_soup.select_one(CSS_SELECTOR_ANGEL_TRAVEL_DETAIL_PROGRAM)
-        if program_element:
-            program = program_element.get_text(separator=os.linesep, strip=True)
-            program = re.sub(r'(\s*'+re.escape(os.linesep)+')+', os.linesep, program).strip()
-
         # Find the main tab container
         parent_horizontal_tab = tabs_page_soup.find('div', id='parentHorizontalTab')
 
         if parent_horizontal_tab:
-            # Find the "ЦЕНАТА ВКЛЮЧВА" content
-            included_content_div = tabs_page_soup.find('div', attrs={'aria-labelledby': 'hor_1_tab_item-1'})
-            if included_content_div:
-                for li in included_content_div.find_all('li'):
-                    text = li.get_text(strip=True)
-                    if text:
-                        included_services.append(text)
-                # The content seems to be directly in <li> tags, but keeping <p> for robustness
-                for p in included_content_div.find_all('p'):
-                    text = p.get_text(strip=True)
-                    if text:
-                        included_services.append(text)
+            # Find all h2 elements that act as tab headers
+            tab_headers = parent_horizontal_tab.find_all('h2', class_='resp-accordion')
 
-            # Find the "ЦЕНАТА НЕ ВКЛЮЧВА" content
-            excluded_content_div = tabs_page_soup.find('div', attrs={'aria-labelledby': 'hor_1_tab_item-2'})
-            if excluded_content_div:
-                for li in excluded_content_div.find_all('li'):
-                    text = li.get_text(strip=True)
-                    if text:
-                        excluded_services.append(text)
-                # The content seems to be directly in <li> tags, but keeping <p> for robustness
-                for p in excluded_content_div.find_all('p'):
-                    text = p.get_text(strip=True)
-                    if text:
-                        excluded_services.append(text)
+            for header in tab_headers:
+                tab_text = header.get_text(strip=True)
+                aria_controls = header.get('aria-controls')
+
+                if aria_controls:
+                    # Find the content div associated with this header
+                    content_div = tabs_page_soup.find('div', attrs={'aria-labelledby': aria_controls})
+
+                    if content_div:
+                        if tab_text == "ПРОГРАМА":
+                            program = content_div.get_text(separator=os.linesep, strip=True)
+                            program = re.sub(r'(\s*'+re.escape(os.linesep)+')+', os.linesep, program).strip()
+                        elif tab_text == "ЦЕНАТА ВКЛЮЧВА":
+                            for li in content_div.find_all('li'):
+                                text = li.get_text(strip=True)
+                                if text:
+                                    included_services.append(text)
+                            for p in content_div.find_all('p'):
+                                text = p.get_text(strip=True)
+                                if text:
+                                    included_services.append(text)
+                        elif tab_text == "ЦЕНАТА НЕ ВКЛЮЧВА":
+                            for li in content_div.find_all('li'):
+                                text = li.get_text(strip=True)
+                                if text:
+                                    excluded_services.append(text)
+                            for p in content_div.find_all('p'):
+                                text = p.get_text(strip=True)
+                                if text:
+                                    excluded_services.append(text)
 
         # If an offer name is provided, create and return an AngelTravelDetailedOffer object.
         if offer_name:
