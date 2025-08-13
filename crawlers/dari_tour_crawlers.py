@@ -352,19 +352,10 @@ class DariTourDetailedCrawler(BaseCrawler):
         offer_slug = slugify(offer_name)
         output_path = self._get_detailed_item_filepath({"name": offer_name})
 
-        # Check if skipping is enabled and the file already exists
-        if self.config.skip_existing_detailed_offers and output_path and os.path.exists(output_path):
-            # Check if the item is already marked as seen (from _load_existing_data_json)
-            if offer_slug in self.seen_items:
-                print(f"Skipping detailed offer processing for {offer_name} as it already exists and skip_existing_detailed_offers is True.")
-                # Load the existing data and return it in the expected format
-                existing_data = self._load_detailed_item_from_file(output_path)
-                if existing_data:
-                    return {"data": existing_data, "path": output_path}
-                else:
-                    print(f"Warning: Could not load existing data from {output_path}. Re-processing.")
-            else:
-                print(f"Warning: File {output_path} exists, but {offer_name} not in seen_items. Re-processing.")
+        # Check if the output file already exists
+        if output_path and os.path.exists(output_path):
+            print(f"Skipping detailed offer processing for {offer_name} as its file already exists: {output_path}")
+            return None
 
         print(f"Processing offer: {offer_name}")
         print(f"URL: {offer_url}")
