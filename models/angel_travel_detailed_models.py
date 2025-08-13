@@ -14,3 +14,4 @@ class AngelTravelDetailedOffer(BaseModel):
     included_services: List[str] = Field(default_factory=list, description="A list of services included in the price, typically found under 'Цената включва'.")
     excluded_services: List[str] = Field(default_factory=list, description="A list of services not included in the price, typically found under 'Цената не включва'.")
     detailed_offer_link: Optional[str] = Field(None, description="The direct link to the detailed offer page.")
+    hotel_links: List[str] = Field(default_factory=list, description="A list of links to hotels associated with the offer.")

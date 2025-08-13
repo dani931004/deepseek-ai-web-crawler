@@ -261,6 +261,7 @@ class AngelTravelDetailedCrawler(BaseCrawler):
         program = ""
         included_services = []
         excluded_services = []
+        hotel_links = [] # Initialize hotel_links list
 
         # Find the main tab container
         parent_horizontal_tab = tabs_page_soup.find('div', id='parentHorizontalTab')
@@ -299,15 +300,25 @@ class AngelTravelDetailedCrawler(BaseCrawler):
                                 text = p.get_text(strip=True)
                                 if text:
                                     excluded_services.append(text)
+                        elif tab_text == "ХОТЕЛИ ПО ПРОГРАМА": # New condition for hotel links
+                            for link_tag in content_div.find_all('a', href=True):
+                                href = link_tag['href']
+                                if "hotel-pochivka.php" in href:
+                                    if not href.startswith('http'):
+                                        href = urllib.parse.urljoin(detailed_offer_link, href)
+                                    hotel_links.append(href)
 
         # If an offer name is provided, create and return an AngelTravelDetailedOffer object.
+        # Convert hotel_links to a set to remove duplicates, then back to a list
+        hotel_links = list(set(hotel_links))
         if offer_name:
             detailed_offer = AngelTravelDetailedOffer(
                 offer_name=offer_name,
                 program=program,
                 included_services=included_services,
                 excluded_services=excluded_services,
-                detailed_offer_link=detailed_offer_link
+                detailed_offer_link=detailed_offer_link,
+                hotel_links=hotel_links # Pass the extracted hotel_links
             )
             return detailed_offer
         return None
