@@ -27,6 +27,7 @@ from models.dari_tour_detailed_models import OfferDetails, Hotel
 from utils.data_utils import save_to_json
 import pandas as pd
 from .base_crawler import BaseCrawler
+from utils.enums import OutputType
 
 
 class DariTourCrawler(BaseCrawler):
@@ -34,7 +35,7 @@ class DariTourCrawler(BaseCrawler):
     A crawler for Dari Tour website to extract general offer information.
     It extends the BaseCrawler to utilize shared crawling infrastructure.
     """
-    def __init__(self, session_id: str, config: Type, model_class: Type):
+    def __init__(self, session_id: str, config: Type, model_class: Type, output_file_type: OutputType = OutputType.CSV):
         """
         Initializes the DariTourCrawler with session ID, config, and model class.
         """
@@ -42,7 +43,7 @@ class DariTourCrawler(BaseCrawler):
             session_id=session_id,
             config=config,
             model_class=model_class,
-            output_file_type='csv',
+            output_file_type=OutputType.CSV,
             required_keys=config.required_keys,
             key_fields=['name', 'link'] # Define key fields for duplicate checking.
         )
@@ -58,7 +59,7 @@ class DariTourCrawler(BaseCrawler):
             List[Any]: A list of BeautifulSoup tag objects, each representing an offer element.
         """
         url = f"{self.config.base_url}?page=1" # Construct the URL for the first page.
-        print(f"Loading page 1...")
+        logging.info(f"Loading page 1...")
         
         # Configure the crawler for the initial page load.
         config = CrawlerRunConfig(
@@ -88,7 +89,7 @@ class DariTourCrawler(BaseCrawler):
         
         # Check if HTML content was successfully retrieved.
         if not result or not result.html:
-            print(f"Failed to load page: {url}")
+            logging.error(f"Failed to load page: {url}")
             return []
             
         # Parse the HTML content using BeautifulSoup.
@@ -98,7 +99,7 @@ class DariTourCrawler(BaseCrawler):
         
         # If no offer elements are found, log a message and return an empty list.
         if not offer_elements:
-            print(f"No offer items found on {url}")
+            logging.info(f"No offer items found on {url}")
             return []
             
         filtered_offer_elements = []
@@ -123,9 +124,9 @@ class DariTourCrawler(BaseCrawler):
             if (normalized_offer_name, normalized_actual_url) not in self.seen_items:
                 filtered_offer_elements.append(offer_element)
             else:
-                print(f"Skipping {offer_name} ({actual_url}) from initial crawl list as it has already been processed.")
+                logging.info(f"Skipping {offer_name} ({actual_url}) from initial crawl list as it has already been processed.")
 
-        print(f"Found {len(filtered_offer_elements)} new offer items to process.")
+        logging.info(f"Found {len(filtered_offer_elements)} new offer items to process.")
         if max_items:
             return filtered_offer_elements[:max_items]
         return filtered_offer_elements
@@ -166,7 +167,7 @@ class DariTourCrawler(BaseCrawler):
         normalized_actual_url = actual_url.lower().strip() if actual_url else ""
         # Check if the offer has already been processed.
         if (normalized_offer_name, normalized_actual_url) in self.seen_items:
-            print(f"Skipping already processed offer: {offer_name} ({actual_url})")
+            logging.info(f"Skipping already processed offer: {offer_name} ({actual_url})")
             return None
 
         try:
@@ -219,36 +220,36 @@ class DariTourCrawler(BaseCrawler):
                     config=offer_config,
                     description="extracting offer details from temporary file"
                 )
-                print(f"DEBUG: offer_result: {offer_result}")
+                logging.debug(f"DEBUG: offer_result: {offer_result}")
                 if offer_result and offer_result.extracted_content:
                     extracted_content = self._parse_extracted_content(offer_result.extracted_content)
-                    print(f"DEBUG: Extracted content: {extracted_content}")
+                    logging.debug(f"DEBUG: Extracted content: {extracted_content}")
                     
                     # Handle cases where extracted content is a list or a single dictionary.
                     if isinstance(extracted_content, list):
                         for offer in extracted_content:
-                            print(f"DEBUG: Processing offer in list: {offer}")
-                            print(f"DEBUG: Is duplicate? {self.is_duplicate(offer)}")
-                            print(f"DEBUG: Is complete? {self.is_complete(offer)}")
+                            logging.debug(f"DEBUG: Processing offer in list: {offer}")
+                            logging.debug(f"DEBUG: Is duplicate? {self.is_duplicate(offer)}")
+                            logging.debug(f"DEBUG: Is complete? {self.is_complete(offer)}")
                             # Check for duplicates and completeness before adding to all_items.
                             if not self.is_duplicate(offer) and self.is_complete(offer):
                                 offer['link'] = actual_url
                                 self.seen_items.add(tuple(offer.get(k, '').lower().strip() for k in self.key_fields))
-                                print(f"Successfully extracted and added new offer: {offer['name']}")
+                                logging.info(f"Successfully extracted and added new offer: {offer['name']}")
                                 return offer
                             else:
-                                print(f"Skipping duplicate or incomplete offer: {offer.get('name', 'N/A')}")
+                                logging.info(f"Skipping duplicate or incomplete offer: {offer.get('name', 'N/A')}")
                     elif isinstance(extracted_content, dict):
-                        print(f"DEBUG: Processing offer as dict: {extracted_content}")
-                        print(f"DEBUG: Is duplicate? {self.is_duplicate(extracted_content)}")
-                        print(f"DEBUG: Is complete? {self.is_complete(extracted_content)}")
+                        logging.debug(f"DEBUG: Processing offer as dict: {extracted_content}")
+                        logging.debug(f"DEBUG: Is duplicate? {self.is_duplicate(extracted_content)}")
+                        logging.debug(f"DEBUG: Is complete? {self.is_complete(extracted_content)}")
                         if not self.is_duplicate(extracted_content) and self.is_complete(extracted_content):
                             extracted_content['link'] = actual_url
                             self.seen_items.add(tuple(extracted_content.get(k, '').lower().strip() for k in self.key_fields))
-                            print(f"Successfully extracted and added new offer: {extracted_content['name']}")
+                            logging.info(f"Successfully extracted and added new offer: {extracted_content['name']}")
                             return extracted_content
                         else:
-                            print(f"Skipping duplicate or incomplete offer: {extracted_content.get('name', 'N/A')}")
+                            logging.info(f"Skipping duplicate or incomplete offer: {extracted_content.get('name', 'N/A')}")
 
             finally:
                 # Ensure the temporary file is deleted after processing.
@@ -256,7 +257,7 @@ class DariTourCrawler(BaseCrawler):
                     os.unlink(temp_file_path)
 
         except Exception as e:
-            print(f"Error processing offer: {str(e)}")
+            logging.error(f"Error processing offer: {str(e)}")
 
         return None
 
@@ -286,7 +287,7 @@ class DariTourDetailedCrawler(BaseCrawler):
     A crawler for Dari Tour website to extract detailed offer information.
     It extends the BaseCrawler to utilize shared crawling infrastructure.
     """
-    def __init__(self, session_id: str, config: Type, model_class: Type):
+    def __init__(self, session_id: str, config: Type, model_class: Type, output_file_type: OutputType = OutputType.JSON):
         """
         Initializes the DariTourDetailedCrawler with session ID, config, and model class.
         """
@@ -294,7 +295,7 @@ class DariTourDetailedCrawler(BaseCrawler):
             session_id=session_id,
             config=config,
             model_class=model_class,
-            output_file_type='json',
+            output_file_type=OutputType.JSON,
             key_fields=['offer_name'] # Using 'offer_name' as key field for duplicate checking.
         )
 
@@ -310,7 +311,7 @@ class DariTourDetailedCrawler(BaseCrawler):
         csv_filepath = os.path.join(self.config.FILES_DIR, "complete_offers.csv")
         # Check if the CSV file exists before proceeding.
         if not os.path.exists(csv_filepath):
-            print(f"Error: The file '{csv_filepath}' was not found.")
+            logging.error(f"Error: The file '{csv_filepath}' was not found.")
             return []
 
         # Read the complete offers from the CSV file into a Pandas DataFrame.
@@ -325,11 +326,11 @@ class DariTourDetailedCrawler(BaseCrawler):
             if offer_slug not in self.seen_items:
                 offers_to_process.append(row)
             else:
-                print(f"Skipping {offer_name} as it has already been processed.")
+                logging.info(f"Skipping {offer_name} as it has already been processed.")
         
         # If no new offers are found, inform the user.
         if not offers_to_process:
-            print("All detailed offers have already been processed.")
+            logging.info("All detailed offers have already been processed.")
             return []
 
         if max_items:
@@ -354,13 +355,13 @@ class DariTourDetailedCrawler(BaseCrawler):
 
         # Check if the output file already exists
         if output_path and os.path.exists(output_path):
-            print(f"Skipping detailed offer processing for {offer_name} as its file already exists: {output_path}")
+            logging.info(f"Skipping detailed offer processing for {offer_name} as its file already exists: {output_path}")
             return None
 
-        print(f"Processing offer: {offer_name}")
-        print(f"URL: {offer_url}")
-        print(f"DEBUG: Item received by process_item: {item}")
-        print(f"DEBUG: Generated output_path: {output_path}")
+        logging.info(f"Processing offer: {offer_name}")
+        logging.info(f"URL: {offer_url}")
+        logging.debug(f"DEBUG: Item received by process_item: {item}")
+        logging.debug(f"DEBUG: Generated output_path: {output_path}")
 
         # Configure the crawler to fetch the detailed offer page.
         config = CrawlerRunConfig(
@@ -379,9 +380,9 @@ class DariTourDetailedCrawler(BaseCrawler):
             if detailed_offer_data and self.is_complete(detailed_offer_data):
                 return {"data": detailed_offer_data.model_dump(), "path": output_path}
             else:
-                print(f"No detailed data extracted or incomplete for {offer_url}")
+                logging.error(f"No detailed data extracted or incomplete for {offer_url}")
         else:
-            print(f"No HTML content retrieved for {offer_url}")
+            logging.error(f"No HTML content retrieved for {offer_url}")
         
         return None
 

@@ -14,6 +14,7 @@ from utils.data_utils import save_to_json, slugify
 import pandas as pd
 import urllib.parse
 from .base_crawler import BaseCrawler
+from utils.enums import OutputType
 
 
 class HotelDetailsCrawler(BaseCrawler):
@@ -21,7 +22,7 @@ class HotelDetailsCrawler(BaseCrawler):
     A crawler for extracting detailed hotel information from individual hotel pages.
     Inherits from BaseCrawler to leverage common crawling functionalities.
     """
-    def __init__(self, session_id: str, config: Type, model_class: Type):
+    def __init__(self, session_id: str, config: Type, model_class: Type, output_file_type: OutputType = OutputType.JSON):
         """
         Initializes the HotelDetailsCrawler with a session ID and sets up
         output directories and loads existing data.
@@ -30,7 +31,7 @@ class HotelDetailsCrawler(BaseCrawler):
             session_id=session_id,
             config=config,
             model_class=model_class,
-            output_file_type='json',
+            output_file_type=OutputType.JSON,
             key_fields=['hotel_name'] # Using 'hotel_name' as key field for duplicate checking
         )
 
@@ -59,7 +60,7 @@ class HotelDetailsCrawler(BaseCrawler):
         # Construct the absolute path to the complete offers CSV file.
         csv_filepath = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', self.config.FILES_DIR, 'complete_offers.csv'))
         if not os.path.exists(csv_filepath):
-            print(f"Error: The file '{csv_filepath}' was not found.")
+            logging.error(f"Error: The file '{csv_filepath}' was not found.")
             return []
 
         offers_df = pd.read_csv(csv_filepath)
@@ -91,10 +92,10 @@ class HotelDetailsCrawler(BaseCrawler):
                                     'offer_title': offer_name
                                 })
                             else:
-                                print(f"Skipping hotel {hotel_name} as its details have already been processed.")
+                                logging.info(f"Skipping hotel {hotel_name} as its details have already been processed.")
 
         if not hotels_to_process:
-            print("All hotel details have already been processed or no hotel links found.")
+            logging.info("All hotel details have already been processed or no hotel links found.")
             return []
         
         if max_items:
@@ -120,8 +121,8 @@ class HotelDetailsCrawler(BaseCrawler):
         hotel_slug = slugify(hotel_name.lower().replace(' ', '-'))
         output_path = os.path.join(self.hotel_details_dir, f"{hotel_slug}.json")
 
-        print(f"Processing hotel: {hotel_name} from offer: {offer_title}")
-        print(f"URL: {hotel_link}")
+        logging.info(f"Processing hotel: {hotel_name} from offer: {offer_title}")
+        logging.info(f"URL: {hotel_link}")
 
         config = CrawlerRunConfig(
             url=hotel_link,
@@ -169,7 +170,7 @@ class HotelDetailsCrawler(BaseCrawler):
             # Return the model dump and the intended output path.
             return {"data": hotel_details_data.model_dump(), "path": output_path}
         else:
-            print(f"No HTML content retrieved for {hotel_link}")
+            logging.error(f"No HTML content retrieved for {hotel_link}")
             return None
 
     def is_duplicate(self, item: Dict[str, Any]) -> bool:

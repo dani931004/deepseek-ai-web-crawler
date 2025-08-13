@@ -18,6 +18,7 @@ from models.angel_travel_models import AngelTravelOffer
 from models.angel_travel_detailed_models import AngelTravelDetailedOffer # Assuming a new detailed model
 import pandas as pd
 from .base_crawler import BaseCrawler
+from utils.enums import OutputType
 
 
 class AngelTravelDetailedCrawler(BaseCrawler):
@@ -25,7 +26,7 @@ class AngelTravelDetailedCrawler(BaseCrawler):
     A crawler specifically designed to extract detailed offer information from Angel Travel.
     It extends the BaseCrawler to leverage common crawling functionalities.
     """
-    def __init__(self, session_id: str, config: Type, model_class: Type):
+    def __init__(self, session_id: str, config: Type, model_class: Type, output_file_type: OutputType = OutputType.JSON):
         """
         Initializes the AngelTravelDetailedCrawler with a specific session ID and key fields.
         Sets up the configuration and output directory for detailed offers.
@@ -34,7 +35,7 @@ class AngelTravelDetailedCrawler(BaseCrawler):
             session_id=session_id,
             config=config,
             model_class=model_class,
-            output_file_type='json',
+            output_file_type=OutputType.JSON,
             key_fields=['offer_name'], # Using 'offer_name' as key field for duplicate checking
             
         )
@@ -56,10 +57,10 @@ class AngelTravelDetailedCrawler(BaseCrawler):
         for i in range(max_retries):
             if os.path.exists(csv_filepath):
                 break
-            print(f"Waiting for {csv_filepath} to appear... Attempt {i+1}/{max_retries}")
+            logging.info(f"Waiting for {csv_filepath} to appear... Attempt {i+1}/{max_retries}")
             await asyncio.sleep(retry_delay)
         else: # This else block executes if the loop completes without a 'break'
-            print(f"Error: The file '{csv_filepath}' was not found after multiple attempts.")
+            logging.error(f"Error: The file '{csv_filepath}' was not found after multiple attempts.")
             return []
 
         # Read the complete offers from the CSV file into a Pandas DataFrame.
@@ -78,10 +79,10 @@ class AngelTravelDetailedCrawler(BaseCrawler):
             if offer_slug not in self.seen_items:
                 offers_to_process.append({'title': offer_name, 'link': offer_link, 'main_page_link': main_page_link})
             else:
-                print(f"Skipping {offer_name} as it has already been processed.")
+                logging.info(f"Skipping {offer_name} as it has already been processed.")
         # If no new offers are found, inform the user.
         if not offers_to_process:
-            print("All detailed offers have already been processed.")
+            logging.info("All detailed offers have already been processed.")
             return []
 
         if max_items:
@@ -107,23 +108,23 @@ class AngelTravelDetailedCrawler(BaseCrawler):
 
         # Check if the output file already exists
         if output_path and os.path.exists(output_path):
-            print(f"Skipping detailed offer processing for {offer_name} as its file already exists: {output_path}")
+            logging.info(f"Skipping detailed offer processing for {offer_name} as its file already exists: {output_path}")
             return None
 
-        print(f"Processing offer: {offer_name}")
-        print(f"Main Page URL: {main_page_url}")
-        print(f"Programa.php URL: {programa_php_url}")
+        logging.info(f"Processing offer: {offer_name}")
+        logging.info(f"Main Page URL: {main_page_url}")
+        logging.info(f"Programa.php URL: {programa_php_url}")
 
         main_page_html, program_page_html, tabs_page_html = await self._get_main_and_program_html(main_page_url, programa_php_url)
 
         if not main_page_html or not program_page_html:
-            print(f"Failed to get required HTML content for {offer_name}")
+            logging.error(f"Failed to get required HTML content for {offer_name}")
             return None
 
-        print(f"DEBUG: Length of main_page_html: {len(main_page_html)}")
-        print(f"DEBUG: Length of program_page_html: {len(program_page_html)}")
+        logging.debug(f"DEBUG: Length of main_page_html: {len(main_page_html)}")
+        logging.debug(f"DEBUG: Length of program_page_html: {len(program_page_html)}")
         if tabs_page_html:
-            print(f"DEBUG: Length of tabs_page_html: {len(tabs_page_html)}")
+            logging.debug(f"DEBUG: Length of tabs_page_html: {len(tabs_page_html)}")
 
         # Save the detailed page HTML for debugging
         with open(f"/home/dani/Desktop/Crawl4AI/data/debug/debug_program_page_html_{offer_slug}.html", "w", encoding="utf-8") as f:
@@ -138,7 +139,7 @@ class AngelTravelDetailedCrawler(BaseCrawler):
         if detailed_offer_data:
             return {"data": detailed_offer_data.model_dump(), "path": output_path}
         else:
-            print(f"No detailed data extracted or incomplete for {main_page_url}")
+            logging.error(f"No detailed data extracted or incomplete for {main_page_url}")
         
         return None
 
@@ -157,7 +158,7 @@ class AngelTravelDetailedCrawler(BaseCrawler):
             main_page_result = await self.crawler.arun(main_page_url, config=main_page_config)
 
             if not main_page_result or not main_page_result.html:
-                print(f"Failed to get main page HTML for {main_page_url}")
+                logging.error(f"Failed to get main page HTML for {main_page_url}")
                 return None, None, None
 
             main_page_html = main_page_result.html
@@ -166,7 +167,7 @@ class AngelTravelDetailedCrawler(BaseCrawler):
             # Step 2: Find the first iframe and extract its src attribute (programa.php - list of offers)
             iframe_tag = main_page_soup.find('iframe', src=re.compile(r'iframe\.peakview\.bg'))
             if not iframe_tag or not iframe_tag.get('src'):
-                print(f"Could not find first iframe with peakview.bg src on {main_page_url}")
+                logging.error(f"Could not find first iframe with peakview.bg src on {main_page_url}")
                 return None, None, None
 
             iframe_src = iframe_tag['src']
@@ -186,7 +187,7 @@ class AngelTravelDetailedCrawler(BaseCrawler):
             await asyncio.sleep(3)
 
             if not iframe_result or not iframe_result.html:
-                print(f"Failed to get HTML from first iframe src (list of offers): {iframe_src}")
+                logging.error(f"Failed to get HTML from first iframe src (list of offers): {iframe_src}")
                 return None, None, None
 
             program_page_html = iframe_result.html # This is the HTML of the list of offers
@@ -196,7 +197,7 @@ class AngelTravelDetailedCrawler(BaseCrawler):
             # The link is within a div with class 'but-wrap' and has class 'but'
             detailed_offer_link_tag = program_page_soup.find('a', class_='but')
             if not detailed_offer_link_tag or not detailed_offer_link_tag.get('href'):
-                print(f"Could not find detailed offer link within {iframe_src}")
+                logging.warning(f"Could not find detailed offer link within {iframe_src}")
                 return main_page_html, program_page_html, None
 
             detailed_programa_php_url = detailed_offer_link_tag['href']
@@ -221,11 +222,11 @@ class AngelTravelDetailedCrawler(BaseCrawler):
                 detailed_program_page_html = detailed_program_result.html
                 return main_page_html, program_page_html, detailed_program_page_html
             else:
-                print(f"Failed to get detailed program page HTML from {detailed_programa_php_url}")
+                logging.error(f"Failed to get detailed program page HTML from {detailed_programa_php_url}")
                 return main_page_html, program_page_html, None
 
         except Exception as e:
-            print(f"Error in _get_main_and_program_html: {e}")
+            logging.error(f"Error in _get_main_and_program_html: {e}")
             return None, None, None
 
     async def _parse_detailed_offer_content(self, main_page_html: str, program_page_html: str, tabs_page_html: str, offer_name: str, detailed_offer_link: Optional[str]) -> Optional[AngelTravelDetailedOffer]:

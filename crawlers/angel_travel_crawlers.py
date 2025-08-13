@@ -23,26 +23,27 @@ import re
 from models.angel_travel_models import AngelTravelOffer
 import pandas as pd
 from .base_crawler import BaseCrawler
+from utils.enums import OutputType
 
 
 class AngelTravelCrawler(BaseCrawler):
-    def __init__(self, session_id: str, config: Type, model_class: Type):
+    def __init__(self, session_id: str, config: Type, model_class: Type, output_file_type: OutputType = OutputType.CSV):
         super().__init__(
             session_id=session_id,
             config=config,
             model_class=model_class,
             required_keys=config.required_keys,
             key_fields=['title', 'link'],
-            output_file_type='csv'
+            output_file_type=OutputType.CSV
         )
         self.llm_strategy = get_llm_strategy(AngelTravelOffer)
         self.processed_destinations = set()
 
     async def get_urls_to_crawl(self, max_items: Optional[int] = None) -> List[Any]:
-        print("Step 1: Fetching destination links...")
+        logging.info("Step 1: Fetching destination links...")
         all_destination_links = await self._get_destination_links()
         if not all_destination_links:
-            print("No destination links found. Exiting.")
+            logging.info("No destination links found. Exiting.")
             return []
 
         # Filter out already processed destinations
@@ -51,13 +52,13 @@ class AngelTravelCrawler(BaseCrawler):
             if dest_url not in self.processed_destinations:
                 destination_links.append((dest_url, dest_name))
             else:
-                print(f"Skipping already processed destination: {dest_name} ({dest_url})")
+                logging.info(f"Skipping already processed destination: {dest_name} ({dest_url})")
 
         if not destination_links:
-            print("All destination links have already been processed. Exiting.")
+            logging.info("All destination links have already been processed. Exiting.")
             return []
 
-        print(f"Found {len(destination_links)} new destination links to process.")
+        logging.info(f"Found {len(destination_links)} new destination links to process.")
         return destination_links
 
     async def _get_destination_links(self) -> List[tuple[str, str]]:
@@ -70,7 +71,7 @@ class AngelTravelCrawler(BaseCrawler):
         )
         result = await self._run_crawler_with_retries(url, config=config, description="fetching destination links")
         if not result or not result.html:
-            print(f"Failed to load main page: {url}")
+            logging.error(f"Failed to load main page: {url}")
             return []
 
         soup = BeautifulSoup(result.html, 'html.parser')
@@ -89,19 +90,19 @@ class AngelTravelCrawler(BaseCrawler):
 
     async def process_item(self, item: Any, seen_items: set) -> Optional[Dict[str, Any]]:
         dest_url, dest_name = item
-        print(f"\nProcessing destination: {dest_name} ({dest_url})")
+        logging.info(f"\nProcessing destination: {dest_name} ({dest_url})")
         
         try:
             offer_elements, iframe_src = await self._crawl_destination_page(dest_url)
             if not offer_elements:
-                print(f"No offers found on {dest_url}")
+                logging.info(f"No offers found on {dest_url}")
                 return None
 
-            print(f"Found {len(offer_elements)} offer elements on {dest_name}")
+            logging.info(f"Found {len(offer_elements)} offer elements on {dest_name}")
 
             for i, offer_element in enumerate(offer_elements, 1):
                 if self.config.max_offers_to_crawl and len(self.all_items) >= self.config.max_offers_to_crawl:
-                    print(f"Reached max_items limit of {max_items}. Stopping processing offer elements.")
+                    logging.info(f"Reached max_items limit of {max_items}. Stopping processing offer elements.")
                     break
                 try:
                     # Manually extract data using BeautifulSoup
@@ -130,15 +131,15 @@ class AngelTravelCrawler(BaseCrawler):
                     if not self.is_duplicate(offer_data) and self.is_complete(offer_data):
                         self.all_items.append(offer_data)
                         self.seen_items.add(tuple(offer_data.get(k, '').lower().strip() for k in self.key_fields))
-                        print(f"Successfully extracted and added new offer: {offer_data['title']}")
+                        logging.info(f"Successfully extracted and added new offer: {offer_data['title']}")
                     else:
-                        print(f"Skipping duplicate or incomplete offer: {offer_data.get('title', 'N/A')}")
+                        logging.info(f"Skipping duplicate or incomplete offer: {offer_data.get('title', 'N/A')}")
 
                 except Exception as e:
-                    print(f"Error processing offer element {i} on {dest_url}: {e}")
+                    logging.error(f"Error processing offer element {i} on {dest_url}: {e}")
 
         except Exception as e:
-            print(f"Error crawling destination {dest_url}: {e}")
+            logging.error(f"Error crawling destination {dest_url}: {e}")
         
         self.processed_destinations.add(dest_url)
         return None
@@ -152,13 +153,13 @@ class AngelTravelCrawler(BaseCrawler):
         )
         result = await self._run_crawler_with_retries(dest_url, config=config, description=f"fetching destination page {dest_url}")
         if not result or not result.html:
-            print(f"Failed to load destination page: {dest_url}")
+            logging.error(f"Failed to load destination page: {dest_url}")
             return [], ""
 
         soup = BeautifulSoup(result.html, 'html.parser')
         iframe_tag = soup.find('iframe', src=re.compile(r'iframe\.peakview\.bg'))
         if not iframe_tag or not iframe_tag.get('src'):
-            print(f"Could not find iframe with peakview.bg src on {dest_url}")
+            logging.error(f"Could not find iframe with peakview.bg src on {dest_url}")
             return [], ""
 
         iframe_src = iframe_tag['src']
@@ -175,7 +176,7 @@ class AngelTravelCrawler(BaseCrawler):
         )
         iframe_result = await self._run_crawler_with_retries(iframe_src, config=iframe_config, description=f"fetching iframe content from {iframe_src}")
         if not iframe_result or not iframe_result.html:
-            print(f"Failed to load iframe content from {iframe_src}")
+            logging.error(f"Failed to load iframe content from {iframe_src}")
             return [], ""
 
         iframe_soup = BeautifulSoup(iframe_result.html, 'html.parser')

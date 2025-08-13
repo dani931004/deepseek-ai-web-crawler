@@ -3,6 +3,9 @@ from pathlib import Path
 from crawl4ai import BrowserConfig
 from typing import Optional
 
+# Delay constants for crawling
+MIN_DELAY_SECONDS = 5
+MAX_DELAY_SECONDS = 15
 
 class CrawlerConfig:
     """
@@ -121,16 +124,8 @@ CSS_SELECTOR_DARI_TOUR_DETAIL_EXCLUDED_SERVICES = "div.resp-tab-content[aria-lab
 
 # CSS Selectors specific to Angel Travel for extracting detailed offer information.
 # Note: Some selectors are duplicated or overridden below due to specific page structures.
-CSS_SELECTOR_ANGEL_TRAVEL_DETAIL_OFFER_NAME = "h1.antetka-inner"  # Selector for the main offer name on a detail page.
-CSS_SELECTOR_ANGEL_TRAVEL_DETAIL_HOTEL_ELEMENTS = "div.resp-tab-content[aria-labelledby='hor_1_tab_item-0'] div.col-hotel"  # Selector for individual hotel elements within a detailed offer.
-CSS_SELECTOR_ANGEL_TRAVEL_DETAIL_HOTEL_NAME = "div.title"  # Selector for the hotel name within a hotel element.
-CSS_SELECTOR_ANGEL_TRAVEL_DETAIL_HOTEL_PRICE = "div.price"  # Selector for the hotel price within a hotel element.
-CSS_SELECTOR_ANGEL_TRAVEL_DETAIL_HOTEL_COUNTRY = "div.info div.country"  # Selector for the hotel country within a hotel element.
-CSS_SELECTOR_ANGEL_TRAVEL_DETAIL_HOTEL_LINK = "a"  # Selector for the link to the hotel's detail page.
-CSS_SELECTOR_ANGEL_TRAVEL_DETAIL_HOTEL_ITEM_LINK = "a.hotel-item"  # Another selector for a hotel item link.
-CSS_SELECTOR_ANGEL_TRAVEL_DETAIL_PROGRAM = "div.resp-tab-content[aria-labelledby='hor_1_tab_item-1']"  # Selector for the program/itinerary section.
-CSS_SELECTOR_ANGEL_TRAVEL_DETAIL_INCLUDED_SERVICES = "div.resp-tab-content[aria-labelledby='hor_1_tab_item-2'] ul li"  # Selector for included services list items.
-CSS_SELECTOR_ANGEL_TRAVEL_DETAIL_EXCLUDED_SERVICES = "div.resp-tab-content[aria-labelledby='hor_1_tab_item-3'] ul li"  # Selector for excluded services list items.
+
+
 
 # Specific overrides/refinements for Angel Travel Detailed offers due to unique page structure.
 CSS_SELECTOR_ANGEL_TRAVEL_DETAIL_OFFER_NAME = "div.program_once h2 a"  # More specific selector for the offer name.

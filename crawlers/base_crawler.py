@@ -3,15 +3,17 @@ import asyncio
 import json
 import time
 import random
-import logging
 from datetime import datetime
+import logging
 from typing import List, Dict, Any, Optional, Type
 from abc import ABC, abstractmethod
+import signal
 
 from crawl4ai import AsyncWebCrawler, CrawlerRunConfig, CacheMode, BrowserConfig
-from config import get_browser_config
+from config import get_browser_config, MIN_DELAY_SECONDS, MAX_DELAY_SECONDS
 from utils.data_utils import save_offers_to_csv, save_to_json, slugify
 from utils.scraper_utils.llm_strategy import get_llm_strategy
+from utils.enums import OutputType
 import pandas as pd
 
 class BaseCrawler(ABC):
@@ -29,7 +31,7 @@ class BaseCrawler(ABC):
         max_retries: int = 3,
         required_keys: Optional[List[str]] = None,
         key_fields: Optional[List[str]] = None,
-        output_file_type: str = '',
+        output_file_type: OutputType = OutputType.CSV,
     ):
         """
         Initializes the BaseCrawler with session-specific and crawling parameters.
@@ -42,7 +44,7 @@ class BaseCrawler(ABC):
             max_retries (int): Maximum number of retries for failed requests.
             required_keys (Optional[List[str]]): List of keys that must be present in extracted data for it to be considered complete.
             key_fields (Optional[List[str]]): Fields used to identify unique items for duplicate checking.
-            output_file_type (str): Indicates the type of output file (e.g., 'csv', 'json').
+            output_file_type (OutputType): Indicates the type of output file (e.g., OutputType.CSV, OutputType.JSON).
         """
         self.session_id = session_id
         self.config = config
@@ -54,10 +56,10 @@ class BaseCrawler(ABC):
         self.output_file_type = output_file_type
         
         # Initialize output_dir and filepath based on config and output_file_type
-        if self.output_file_type == 'csv':
+        if self.output_file_type == OutputType.CSV:
             self.output_dir = self.config.FILES_DIR
             self.filepath = os.path.join(self.output_dir, "complete_offers.csv")
-        elif self.output_file_type == 'json':
+        elif self.output_file_type == OutputType.JSON:
             self.output_dir = self.config.DETAILS_DIR
             self.filepath = None # For JSON, filepath is dynamic per item
         else:
@@ -74,6 +76,15 @@ class BaseCrawler(ABC):
         self.llm_strategy = None  # Placeholder for LLM strategy, if used.
         self.seen_items = set()  # Stores identifiers of already processed items to avoid duplicates.
         self.all_items = []  # Accumulates all successfully processed items.
+        self.stop_event = asyncio.Event() # Event to signal graceful shutdown.
+
+    def _signal_handler(self, signum, frame):
+        logging.info("Ctrl+C detected. Initiating forceful shutdown...")
+        self.stop_event.set()
+        
+        # Forceful exit after a short delay to allow some cleanup
+        # This is a last resort to ensure the process terminates.
+        asyncio.get_event_loop().call_later(0.1, os._exit, 1)
 
     async def _run_crawler_with_retries(self, url: str, config: CrawlerRunConfig, description: str = "crawling") -> Any:
         """
@@ -91,18 +102,23 @@ class BaseCrawler(ABC):
             Exception: If the crawling operation fails after all retries.
         """
         for attempt in range(self.max_retries):
+            # Check for graceful shutdown before attempting to crawl
+            if self.stop_event.is_set():
+                logging.info(f"Graceful shutdown initiated. Skipping {description} {url}.")
+                raise asyncio.CancelledError("Crawling cancelled due to graceful shutdown.")
+
             try:
-                print(f"Attempt {attempt + 1}/{self.max_retries} to {description} {url}")
+                logging.info(f"Attempt {attempt + 1}/{self.max_retries} to {description} {url}")
                 result = await self.crawler.arun(url, config=config)
                 if result and (result.html or result.extracted_content):
                     return result
                 elif attempt == self.max_retries - 1:
                     raise Exception(f"Failed to get content for {url} after {self.max_retries} attempts.")
             except Exception as e:
-                print(f"Error during {description} {url} (attempt {attempt + 1}): {e}")
+                logging.error(f"Error during {description} {url} (attempt {attempt + 1}): {e}")
                 if attempt < self.max_retries - 1:
                     retry_delay = 2 ** attempt + random.uniform(0, 1)
-                    print(f"Retrying in {retry_delay:.2f} seconds...")
+                    logging.warning(f"Retrying in {retry_delay:.2f} seconds...")
                     await asyncio.sleep(retry_delay)
                 else:
                     raise
@@ -125,7 +141,7 @@ class BaseCrawler(ABC):
                 normalized_keys = tuple(str(row[k]).lower().strip() for k in key_fields)
                 self.seen_items.add(normalized_keys)
             self.all_items.extend(existing_df.to_dict(orient='records'))
-            print(f"Loaded {len(self.seen_items)} existing items from {filepath}")
+            logging.info(f"Loaded {len(self.seen_items)} existing items from {filepath}")
 
     def _load_existing_data_json(self, dirpath: str):
         """
@@ -147,10 +163,10 @@ class BaseCrawler(ABC):
                                 offer_name_slug = slugify(data['offer_name'])
                                 self.seen_items.add(offer_name_slug)
                     except json.JSONDecodeError as e:
-                        print(f"Error decoding JSON from {filepath}: {e}")
+                        logging.error(f"Error decoding JSON from {filepath}: {e}")
                     except Exception as e:
-                        print(f"Error loading {filepath}: {e}")
-            print(f"Loaded {len(self.seen_items)} existing items from {dirpath}")
+                        logging.error(f"Error loading {filepath}: {e}")
+            logging.info(f"Loaded {len(self.seen_items)} existing items from {dirpath}")
 
     @abstractmethod
     async def get_urls_to_crawl(self, max_items: Optional[int] = None) -> List[Any]:
@@ -206,7 +222,11 @@ class BaseCrawler(ABC):
         if not self.required_keys:
             return True  # If no required keys are defined, the item is always considered complete.
         # Check if all specified required keys exist in the item.
-        return all(key in item for key in self.required_keys)
+        missing_keys = [key for key in self.required_keys if key not in item]
+        if missing_keys:
+            logging.warning(f"Item is incomplete. Missing keys: {', '.join(missing_keys)}. Item: {item}")
+            return False
+        return True
 
     def _save_data_csv(self, filepath: str, model_class: Type):
         """
@@ -217,7 +237,7 @@ class BaseCrawler(ABC):
             model_class (Type): The Pydantic model class used for data validation and serialization.
         """
         if not self.all_items:
-            print("No new offers to save in this crawl.")
+            logging.info("No new offers to save in this crawl.")
             return
 
         new_df = pd.DataFrame(self.all_items)
@@ -239,7 +259,7 @@ class BaseCrawler(ABC):
         combined_df = combined_df[fieldnames]
 
         combined_df.to_csv(filepath, index=False, encoding="utf-8")
-        print(f"Saved {len(combined_df)} unique offers to '{filepath}'.")
+        logging.info(f"Saved {len(combined_df)} unique offers to '{filepath}'.")
 
     def _save_data_json(self, data: Dict[str, Any], filepath: str):
         """
@@ -250,7 +270,7 @@ class BaseCrawler(ABC):
             filepath (str): The path where the JSON file will be saved.
         """
         save_to_json(data, filepath)
-        print(f"Saved detailed offer to {filepath}")
+        logging.info(f"Saved detailed offer to {filepath}")
 
     def _get_detailed_item_filepath(self, item: Dict[str, Any]) -> Optional[str]:
         """
@@ -271,21 +291,21 @@ class BaseCrawler(ABC):
                 try:
                     return json.load(f)
                 except json.JSONDecodeError as e:
-                    print(f"Error decoding JSON from {filepath}: {e}")
+                    logging.error(f"Error decoding JSON from {filepath}: {e}")
         return None
 
     def save_data(self):
         """
         Saves the collected data based on the configured output file type.
         """
-        if self.output_file_type == 'csv':
+        if self.output_file_type == OutputType.CSV:
             self._save_data_csv(self.filepath, self.model_class)
-        elif self.output_file_type == 'json':
+        elif self.output_file_type == OutputType.JSON:
             # For JSON, all_items will contain dictionaries with 'data' and 'path'
             for item in self.all_items:
                 self._save_data_json(item["data"], item["path"])
         else:
-            print(f"Unknown output file type: {self.output_file_type}. Data not saved.")
+            logging.warning(f"Unknown output file type: {self.output_file_type}. Data not saved.")
 
     async def crawl(self, max_items: Optional[int] = None):
         """
@@ -295,12 +315,20 @@ class BaseCrawler(ABC):
         Args:
             max_items (Optional[int]): An optional limit on the number of items to process.
         """
+        # Register the signal handler for graceful shutdown
+        signal.signal(signal.SIGINT, self._signal_handler)
+
         # Enter the asynchronous context for the crawler.
-        await self.crawler.__aenter__()
+        try:
+            await self.crawler.__aenter__()
+        except Exception as e:
+            logging.error(f"Failed to initialize crawler: {type(e).__name__}: {e}")
+            # Re-raise the exception to stop the crawl if initialization fails
+            raise
         # Load existing data based on the configured output file type.
-        if self.output_file_type == 'csv':
+        if self.output_file_type == OutputType.CSV:
             self._load_existing_data_csv(self.filepath, self.key_fields)
-        elif self.output_file_type == 'json':
+        elif self.output_file_type == OutputType.JSON:
             self._load_existing_data_json(self.output_dir)
         
         try:
@@ -311,9 +339,14 @@ class BaseCrawler(ABC):
             for i, item in enumerate(urls_to_crawl):
                 # Check if the maximum item limit has been reached.
                 if max_items is not None and len(self.all_items) >= max_items:
-                    print(f"Reached max_items limit of {max_items}. Stopping.")
+                    logging.info(f"Reached max_items limit of {max_items}. Stopping.")
                     break
                 
+                # Check if graceful shutdown has been initiated
+                if self.stop_event.is_set():
+                    logging.info("Graceful shutdown initiated. Stopping crawling.")
+                    break
+
                 # Process the current item.
                 processed_item = await self.process_item(item, self.seen_items)
                 if processed_item:
@@ -321,16 +354,31 @@ class BaseCrawler(ABC):
 
                 # Introduce a random delay between requests to avoid overwhelming the server.
                 if i < len(urls_to_crawl) - 1:
-                    delay = random.uniform(5, 15)
-                    print(f"Waiting {delay:.1f} seconds before next request...")
-                    await asyncio.sleep(delay)
+                    delay = random.uniform(MIN_DELAY_SECONDS, MAX_DELAY_SECONDS)
+                    logging.info(f"Waiting {delay:.1f} seconds before next request...")
+                    # Wait for the delay or until stop_event is set
+                    try:
+                        await asyncio.wait_for(self.stop_event.wait(), timeout=delay)
+                        logging.info("Delay interrupted by graceful shutdown signal.")
+                        break # Break the loop if signal received during delay
+                    except asyncio.TimeoutError:
+                        pass # Delay completed without interruption
 
+        except asyncio.CancelledError:
+            logging.info("Crawling task cancelled. Performing cleanup.")
         except Exception as e:
             # Log any errors that occur during the crawling process.
-            print(f"An error occurred during the crawling process: {e}")
+            logging.error(f"An error occurred during the crawling process: {e}")
         finally:
             # Exit the asynchronous context for the crawler.
-            await self.crawler.__aexit__(None, None, None)
+            try:
+                await self.crawler.__aexit__(None, None, None)
+            except Exception as e:
+                # Catch any exception during cleanup, as it's expected during graceful shutdown
+                # when Playwright might try to close an already closed browser/context,
+                # or when the event loop is closing.
+                logging.warning(f"Error during crawler cleanup (expected during shutdown): {type(e).__name__}: {e}")
+            
             self.save_data() # Save all collected data.
             if self.llm_strategy:
                 self.llm_strategy.show_usage() # Display LLM usage if an LLM strategy is present.
