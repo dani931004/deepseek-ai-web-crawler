@@ -115,7 +115,7 @@ class AngelTravelDetailedCrawler(BaseCrawler):
         logging.info(f"Main Page URL: {main_page_url}")
         logging.info(f"Programa.php URL: {programa_php_url}")
 
-        main_page_html, program_page_html, tabs_page_html, actual_programa_php_url = await self._get_main_and_program_html(main_page_url, programa_php_url)
+        main_page_html, program_page_html, tabs_page_html, actual_programa_php_url = await self._get_main_and_program_html(main_page_url, programa_php_url, offer_name)
 
         # Update programa_php_url with the actual URL found
         programa_php_url = actual_programa_php_url if actual_programa_php_url else programa_php_url
@@ -147,7 +147,7 @@ class AngelTravelDetailedCrawler(BaseCrawler):
         
         return None
 
-    async def _get_main_and_program_html(self, main_page_url: str, initial_programa_php_url: str) -> Optional[Tuple[str, str, str, str]]:
+    async def _get_main_and_program_html(self, main_page_url: str, initial_programa_php_url: str, offer_name: str) -> Optional[Tuple[str, str, str, str]]:
         """
         Navigates to the main page, extracts the iframe src, and then crawls the iframe src to get the program HTML.
         Returns a tuple of (main_page_html, program_page_html, detailed_program_page_html).
@@ -199,7 +199,15 @@ class AngelTravelDetailedCrawler(BaseCrawler):
 
             # Step 4: Find the link to the detailed programa.php within the list of offers
             # The link is within a div with class 'but-wrap' and has class 'but'
-            detailed_offer_link_tag = program_page_soup.find('a', class_='but')
+            # Find the specific offer's main link using its title (offer_name)
+            offer_main_link_tag = program_page_soup.find('a', title=offer_name)
+            if not offer_main_link_tag:
+                logging.warning(f"Could not find main link for offer '{offer_name}' within {iframe_src}")
+                return main_page_html, program_page_html, None, None
+
+            # Find the 'a' tag with class 'but' that has the same href as the offer_main_link_tag
+            detailed_offer_link_tag = program_page_soup.find('a', class_='but', href=offer_main_link_tag.get('href'))
+            
             if not detailed_offer_link_tag or not detailed_offer_link_tag.get('href'):
                 logging.warning(f"Could not find detailed offer link within {iframe_src}")
                 return main_page_html, program_page_html, None, None
