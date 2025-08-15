@@ -46,14 +46,18 @@ logger.addHandler(console_handler)
 
 
 from crawlers.dari_tour_crawlers import DariTourCrawler, DariTourDetailedCrawler
+from crawlers.dari_tour_excursions_crawler import DariTourExcursionsCrawler
+from crawlers.dari_tour_excursions_detailed_crawler import DariTourExcursionsDetailedCrawler
 from crawlers.hotel_details_crawler import HotelDetailsCrawler
 from crawlers.angel_travel_crawlers import AngelTravelCrawler
 from crawlers.angel_travel_detailed_crawler import AngelTravelDetailedCrawler
-from config import angel_travel_config, dari_tour_config
+from config import angel_travel_config, dari_tour_config, dari_tour_excursions_config
 from models.angel_travel_detailed_models import AngelTravelDetailedOffer
 from models.angel_travel_models import AngelTravelOffer
 from models.dari_tour_models import DariTourOffer
 from models.dari_tour_detailed_models import OfferDetails
+from models.dari_tour_excursions_models import DariTourExcursionOffer
+from models.dari_tour_excursions_detailed_models import DariTourExcursionDetailedOffer
 from utils.enums import OutputType
 
 
@@ -71,6 +75,23 @@ async def main():
 
     session_id = datetime.now().strftime("%Y%m%d%H%M%S")
 
+
+    # Then, run the Dari Tour Crawler
+#    dari_tour_crawler = DariTourCrawler(session_id=session_id, config=dari_tour_config, model_class=DariTourOffer, output_file_type=OutputType.CSV)
+#    await dari_tour_crawler.crawl() # Process all offers
+
+    # Then, run the Dari Tour Detailed Crawler
+#    dari_tour_detailed_crawler = DariTourDetailedCrawler(session_id=session_id, config=dari_tour_config, model_class=OfferDetails, output_file_type=OutputType.JSON)
+#    await dari_tour_detailed_crawler.crawl() # Process all offers
+
+    # New: Run the Dari Tour Excursions Crawler
+    dari_tour_excursions_crawler = DariTourExcursionsCrawler(session_id=session_id, config=dari_tour_excursions_config, model_class=DariTourExcursionOffer, output_file_type=OutputType.CSV)
+    await dari_tour_excursions_crawler.crawl() # Process all excursion offers
+
+    # New: Run the Dari Tour Excursions Detailed Crawler
+    dari_tour_excursions_detailed_crawler = DariTourExcursionsDetailedCrawler(session_id=session_id, config=dari_tour_excursions_config, model_class=DariTourExcursionDetailedOffer, output_file_type=OutputType.JSON)
+    await dari_tour_excursions_detailed_crawler.crawl() # Process all detailed excursion offers
+
     # First, run the Angel Travel Crawler to populate the complete_offers.csv
     angel_travel_crawler = AngelTravelCrawler(session_id=session_id, config=angel_travel_config, model_class=AngelTravelOffer, output_file_type=OutputType.CSV)
     await angel_travel_crawler.crawl() # Process all offers
@@ -78,15 +99,6 @@ async def main():
     # Then, run the Angel Travel Detailed Crawler
     angel_travel_detailed_crawler = AngelTravelDetailedCrawler(session_id=session_id, config=angel_travel_config, model_class=AngelTravelDetailedOffer, output_file_type=OutputType.JSON)
     await angel_travel_detailed_crawler.crawl() # Process all offers
-
-    # Then, run the Dari Tour Crawler
-    dari_tour_crawler = DariTourCrawler(session_id=session_id, config=dari_tour_config, model_class=DariTourOffer, output_file_type=OutputType.CSV)
-    await dari_tour_crawler.crawl() # Process all offers
-
-    # Then, run the Dari Tour Detailed Crawler
-    dari_tour_detailed_crawler = DariTourDetailedCrawler(session_id=session_id, config=dari_tour_config, model_class=OfferDetails, output_file_type=OutputType.JSON)
-    await dari_tour_detailed_crawler.crawl() # Process all offers
-
 
 if __name__ == "__main__":
     # Entry point for the script execution.

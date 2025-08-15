@@ -2,12 +2,13 @@ import os
 from pathlib import Path
 from crawl4ai import BrowserConfig
 from typing import Optional
+from models.dari_tour_excursions_models import DariTourExcursionOffer
 
 PAGE_TIMEOUT = 120000
 
 # Delay constants for crawling
-MIN_DELAY_SECONDS = 10
-MAX_DELAY_SECONDS = 30
+MIN_DELAY_SECONDS = 5
+MAX_DELAY_SECONDS = 15
 
 class CrawlerConfig:
     """
@@ -64,6 +65,14 @@ dari_tour_config = CrawlerConfig(
     css_selector=".offer-item",
     required_keys=["name", "date", "price", "transport_type", "link"],
     max_offers_to_crawl=5,
+)
+
+dari_tour_excursions_config = CrawlerConfig(
+    name="dari_tour_excursions",
+    base_url="https://dari-tour.com/", # Base URL for the main site
+    css_selector="div.col-offer a.offer-item", # Selector for individual offer items on destination pages
+    required_keys=["name", "date", "price", "link"],
+    max_offers_to_crawl=None, # Crawl all offers by default
 )
 
 angel_travel_config = CrawlerConfig(
@@ -123,6 +132,12 @@ CSS_SELECTOR_DARI_TOUR_DETAIL_HOTEL_ITEM_LINK = "a.hotel-item"  # Another select
 CSS_SELECTOR_DARI_TOUR_DETAIL_PROGRAM = "div.resp-tab-content[aria-labelledby='hor_1_tab_item-1']"  # Selector for the program/itinerary section.
 CSS_SELECTOR_DARI_TOUR_DETAIL_INCLUDED_SERVICES = "div.resp-tab-content[aria-labelledby='hor_1_tab_item-2'] ul li"  # Selector for included services list items.
 CSS_SELECTOR_DARI_TOUR_DETAIL_EXCLUDED_SERVICES = "div.resp-tab-content[aria-labelledby='hor_1_tab_item-3'] ul li"  # Selector for excluded services list items.
+
+# CSS Selectors specific to Dari Tour Excursions for extracting detailed offer information.
+TAB_LABEL_PROGRAM = "Програма"
+TAB_LABEL_INCLUDED_SERVICES = "Цената включва"
+TAB_LABEL_EXCLUDED_SERVICES = "Цената не включва"
+TAB_LABEL_ADDITIONAL_EXCURSIONS = "Допълнителни екскурзии"
 
 # CSS Selectors specific to Angel Travel for extracting detailed offer information.
 # Note: Some selectors are duplicated or overridden below due to specific page structures.

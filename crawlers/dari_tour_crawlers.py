@@ -122,7 +122,11 @@ class DariTourCrawler(BaseCrawler):
             normalized_actual_url = actual_url.lower().strip() if actual_url else ""
 
             if (normalized_offer_name, normalized_actual_url) not in self.seen_items:
-                filtered_offer_elements.append(offer_element)
+                filtered_offer_elements.append({
+                    'offer_element': offer_element,
+                    'actual_url': actual_url,
+                    'offer_name': offer_name
+                })
             else:
                 logging.info(f"Skipping {offer_name} ({actual_url}) from initial crawl list as it has already been processed.")
 
@@ -143,30 +147,12 @@ class DariTourCrawler(BaseCrawler):
         Returns:
             Optional[Dict[str, Any]]: A dictionary containing the extracted offer data, or None if processing fails or the item is a duplicate.
         """
-        offer_element = item
-        actual_url = None
-        offer_name = ""
-        # Extract the offer URL and name from the BeautifulSoup tag.
-        if offer_element.name == 'a' and 'href' in offer_element.attrs:
-            href = offer_element['href']
-            # Handle both absolute and relative URLs.
-            if href.startswith('http'):
-                actual_url = href
-            else:
-                actual_url = urllib.parse.urljoin(self.config.base_url, href)
-            # Clean up the URL by removing query parameters and fragments.
-            actual_url = actual_url.split('?')[0].split('#')[0]
-            
-            # Extract the offer name using a specific CSS selector.
-            name_el = offer_element.select_one(CSS_SELECTOR_OFFER_ITEM_TITLE)
-            if name_el:
-                offer_name = name_el.get_text(strip=True)
+        offer_element = item['offer_element']
+        actual_url = item['actual_url']
+        offer_name = item['offer_name']
 
-        # Normalize offer name and URL for duplicate checking.
-        normalized_offer_name = offer_name.lower().strip()
-        normalized_actual_url = actual_url.lower().strip() if actual_url else ""
         # Check if the offer has already been processed.
-        if (normalized_offer_name, normalized_actual_url) in self.seen_items:
+        if self.is_duplicate(item):
             logging.info(f"Skipping already processed offer: {offer_name} ({actual_url})")
             return None
 
@@ -224,31 +210,42 @@ class DariTourCrawler(BaseCrawler):
                 if offer_result and offer_result.extracted_content:
                     extracted_content = self._parse_extracted_content(offer_result.extracted_content)
                     logging.debug(f"DEBUG: Extracted content: {extracted_content}")
+                    logging.debug(f"DEBUG: Type of extracted_content: {type(extracted_content)}")
                     
+                    if extracted_content is None:
+                        logging.warning(f"Skipping offer due to unparseable LLM content: {offer_result.extracted_content}")
+                        return None
+
                     # Handle cases where extracted content is a list or a single dictionary.
                     if isinstance(extracted_content, list):
                         for offer in extracted_content:
                             logging.debug(f"DEBUG: Processing offer in list: {offer}")
                             logging.debug(f"DEBUG: Is complete? {self.is_complete(offer)}") # is_duplicate check will be handled by _append_item_to_csv
                             # Check for completeness before adding to all_items.
-                            if self.is_complete(offer):
+                            if self.is_complete(offer) and not offer.get('error', False):
+                                if 'error' in offer: # Remove the 'error' key if present
+                                    del offer['error']
                                 offer['link'] = actual_url
-                                self._append_item_to_csv(offer)
+                                self._append_item_to_csv(offer, self.filepath, self.model_class, self.key_fields)
                                 logging.info(f"Successfully extracted and added new offer: {offer['name']}")
+                                await asyncio.sleep(15) # Add delay after successful LLM call
                                 return offer # Return after processing the first valid offer in the list
                             else:
-                                logging.info(f"Skipping incomplete offer: {offer.get('name', 'N/A')}")
+                                logging.info(f"Skipping incomplete or error offer: {offer.get('name', 'N/A')}")
                     elif isinstance(extracted_content, dict):
                         logging.debug(f"DEBUG: Processing offer as dict: {extracted_content}")
                         logging.debug(f"DEBUG: Is duplicate? {self.is_duplicate(extracted_content)}")
                         logging.debug(f"DEBUG: Is complete? {self.is_complete(extracted_content)}")
-                        if self.is_complete(extracted_content): # is_duplicate check will be handled by _append_item_to_csv
+                        if self.is_complete(extracted_content) and not extracted_content.get('error', False): # is_duplicate check will be handled by _append_item_to_csv
+                            if 'error' in extracted_content: # Remove the 'error' key if present
+                                del extracted_content['error']
                             extracted_content['link'] = actual_url
                             
-                            self._append_item_to_csv(extracted_content)
+                            self._append_item_to_csv(extracted_content, self.filepath, self.model_class, self.key_fields)
                             logging.info(f"Successfully extracted and added new offer: {extracted_content['name']}")
+                            await asyncio.sleep(15) # Add delay after successful LLM call
                         else:
-                            logging.info(f"Skipping incomplete offer: {extracted_content.get('name', 'N/A')}")
+                            logging.info(f"Skipping incomplete or error offer: {extracted_content.get('name', 'N/A')}")
 
             finally:
                 # Ensure the temporary file is deleted after processing.
@@ -275,7 +272,30 @@ class DariTourCrawler(BaseCrawler):
             try:
                 return json.loads(content)
             except json.JSONDecodeError:
-                pass # If JSON decoding fails, treat as plain text.
+                logging.warning(f"Failed to decode JSON from LLM content: {content}")
+                return None # Return None if JSON decoding fails
+        return content
+
+    
+
+
+    def _parse_extracted_content(self, content: Any) -> Any:
+        """
+        Parses the extracted content, attempting to load it as JSON if it's a string.
+
+        Args:
+            content (Any): The content extracted by the LLM.
+
+        Returns:
+            Any: The parsed content (e.g., dictionary, list) or the original content if not JSON.
+        """
+        # If the content is a string and looks like JSON, attempt to parse it.
+        if isinstance(content, str) and (content.startswith('[') or content.startswith('{')):
+            try:
+                return json.loads(content)
+            except json.JSONDecodeError:
+                logging.warning(f"Failed to decode JSON from LLM content: {content}")
+                return None # Return None if JSON decoding fails
         return content
 
     

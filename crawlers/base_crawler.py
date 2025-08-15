@@ -297,9 +297,11 @@ class BaseCrawler(ABC):
         new_df = pd.DataFrame(self.all_items)
         
         if os.path.exists(filepath):
+            logging.info(f"File {filepath} exists. Merging with existing data.")
             existing_df = pd.read_csv(filepath, dtype={k: str for k in self.key_fields})
             combined_df = pd.concat([existing_df, new_df]).drop_duplicates(subset=self.key_fields).reset_index(drop=True)
         else:
+            logging.info(f"File {filepath} does not exist. Creating new file.")
             combined_df = new_df
 
         # Ensure all columns from the model are present, filling missing with None or empty string
@@ -312,8 +314,9 @@ class BaseCrawler(ABC):
         # Reorder columns to match model_class field order
         combined_df = combined_df[fieldnames]
 
+        logging.info(f"Saving {len(combined_df)} unique offers to '{filepath}'.")
         combined_df.to_csv(filepath, index=False, encoding="utf-8")
-        logging.info(f"Saved {len(combined_df)} unique offers to '{filepath}'.")
+        logging.info(f"Successfully saved data to '{filepath}'.")
 
     def _save_data_json(self, data: Dict[str, Any], filepath: str):
         """
@@ -378,6 +381,25 @@ class BaseCrawler(ABC):
                     logging.error(f"Error decoding JSON from {filepath}: {e}")
         return None
 
+    def _parse_extracted_content(self, content: Any) -> Any:
+        """
+        Parses the extracted content, attempting to load it as JSON if it's a string.
+
+        Args:
+            content (Any): The content extracted by the LLM.
+
+        Returns:
+            Any: The parsed content (e.g., dictionary, list) or the original content if not JSON.
+        """
+        # If the content is a string and looks like JSON, attempt to parse it.
+        if isinstance(content, str) and (content.startswith('[') or content.startswith('{')):
+            try:
+                return json.loads(content)
+            except json.JSONDecodeError:
+                logging.warning(f"Failed to decode JSON from LLM content: {content}")
+                return None # Return None if JSON decoding fails
+        return content
+
     def save_data(self):
         """
         Saves the collected data based on the configured output file type.
@@ -426,7 +448,7 @@ class BaseCrawler(ABC):
             total_items = len(urls_to_crawl)
             for i, item in enumerate(urls_to_crawl):
                 if isinstance(item, dict):
-                    item_display_name = item.get('name', item.get('title', str(item)))
+                    item_display_name = item.get('offer_name', item.get('name', item.get('title', str(item))))
                 elif isinstance(item, tuple) and len(item) > 1:
                     item_display_name = item[1] # Assuming the second element of the tuple is the name
                 else:
